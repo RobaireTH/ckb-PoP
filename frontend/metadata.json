@@ -1,0 +1,7 @@
+{
+  "name": "PoP - Proof of Presence",
+  "description": "Mint digital badges for real-world events on the CKB blockchain. Connect wallet, scan, and prove you showed up.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
