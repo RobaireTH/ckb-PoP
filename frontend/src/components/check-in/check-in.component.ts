@@ -1,6 +1,6 @@
 import { Component, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PoapService, PoPEvent } from '../../services/poap.service';
 import { WalletService } from '../../services/wallet.service';
@@ -9,7 +9,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 @Component({
   selector: 'app-check-in',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, WalletModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, WalletModalComponent],
   template: `
     <div class="min-h-[80vh] flex flex-col items-center justify-start py-8 pt-24 px-4 sm:px-6 lg:px-8">
       

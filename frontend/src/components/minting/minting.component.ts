@@ -1,5 +1,5 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { WalletService } from '../../services/wallet.service';
 import { PoapService, PoPEvent, Badge } from '../../services/poap.service';
@@ -10,7 +10,7 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
 @Component({
   selector: 'app-minting',
   standalone: true,
-  imports: [CommonModule, RouterLink, WalletModalComponent, NgOptimizedImage],
+  imports: [CommonModule, RouterLink, WalletModalComponent],
   template: `
     <div class="min-h-[80vh] flex flex-col items-center justify-center py-10 px-4">
       
@@ -75,7 +75,7 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
            </div>
            
            <!-- Fake Terminal Output -->
-           <div class="mt-8 text-left font-mono text-[10px] text-zinc-600 space-y-1 opacity-70">
+           <div class="mt-8 text-left font-mono text-xs text-zinc-600 space-y-1 opacity-70">
               <p>> init_handshake(wallet)</p>
               @if (currentStep() === 'minting') {
                 <p class="text-zinc-400">> signature_verified: OK</p>
@@ -104,12 +104,12 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
                       <div class="w-8 h-8 border border-white/20 flex items-center justify-center bg-black/50 backdrop-blur">
                          <span class="font-display font-bold text-white">P</span>
                       </div>
-                      <span class="font-mono text-[10px] text-lime-400 border border-lime-400 px-1">VERIFIED</span>
+                      <span class="font-mono text-xs text-lime-400 border border-lime-400 px-1">VERIFIED</span>
                    </div>
 
                    <div class="bg-black/80 backdrop-blur p-4 border-l-2 border-lime-400">
                       <h3 class="font-display text-xl font-bold text-white leading-tight mb-1">{{ earnedBadge()?.eventName }}</h3>
-                      <p class="font-mono text-[10px] text-zinc-400 uppercase">{{ earnedBadge()?.role }} • {{ earnedBadge()?.mintDate | date:'shortDate' }}</p>
+                      <p class="font-mono text-xs text-zinc-400 uppercase">{{ earnedBadge()?.role }} • {{ earnedBadge()?.mintDate | date:'shortDate' }}</p>
                    </div>
                 </div>
 

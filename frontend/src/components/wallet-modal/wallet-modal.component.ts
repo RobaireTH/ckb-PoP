@@ -27,14 +27,14 @@ import { WalletService, WalletType } from '../../services/wallet.service';
           </div>
         </div>
         <div class="mt-5 sm:mt-6 grid gap-3">
-          
+
           <!-- 1. JoyID -->
           <button (click)="select('JoyID')" class="group flex w-full items-center justify-between rounded-xl border border-white/5 bg-white/5 px-4 py-3 text-sm font-semibold text-zinc-200 shadow-sm hover:bg-white/10 hover:border-cyan-500/50 hover:shadow-[0_0_15px_rgba(6,182,212,0.2)] transition-all">
             <span class="flex items-center gap-3">
               <img src="https://www.google.com/s2/favicons?domain=app.joy.id&sz=128" class="h-8 w-8 rounded-full bg-white p-0.5" alt="JoyID Logo">
               <span class="flex flex-col items-start">
                 <span class="group-hover:text-cyan-400 transition-colors">JoyID</span>
-                <span class="text-[10px] text-zinc-500 font-normal">Passkey & Biometrics</span>
+                <span class="text-xs text-zinc-500 font-normal">Passkey & Biometrics</span>
               </span>
             </span>
           </button>
@@ -45,7 +45,7 @@ import { WalletService, WalletType } from '../../services/wallet.service';
               <img src="https://www.google.com/s2/favicons?domain=walletconnect.com&sz=128" class="h-8 w-8 rounded-full bg-white p-0.5" alt="WalletConnect Logo">
                <span class="flex flex-col items-start">
                 <span class="group-hover:text-blue-400 transition-colors">WalletConnect</span>
-                <span class="text-[10px] text-zinc-500 font-normal">Mobile & QR Code</span>
+                <span class="text-xs text-zinc-500 font-normal">Mobile & QR Code</span>
               </span>
             </span>
           </button>
@@ -56,7 +56,7 @@ import { WalletService, WalletType } from '../../services/wallet.service';
               <img src="https://www.google.com/s2/favicons?domain=wallet.unipass.id&sz=128" class="h-8 w-8 rounded-full bg-white p-0.5" alt="UniPass Logo">
                <span class="flex flex-col items-start">
                 <span class="group-hover:text-purple-400 transition-colors">UniPass</span>
-                <span class="text-[10px] text-zinc-500 font-normal">Email & Social</span>
+                <span class="text-xs text-zinc-500 font-normal">Email & Social</span>
               </span>
             </span>
           </button>
@@ -67,7 +67,7 @@ import { WalletService, WalletType } from '../../services/wallet.service';
               <img src="https://www.google.com/s2/favicons?domain=nervos.org&sz=128" class="h-8 w-8 rounded-full bg-white p-0.5" alt="Neuron Logo">
                <span class="flex flex-col items-start">
                 <span class="group-hover:text-green-400 transition-colors">Neuron</span>
-                <span class="text-[10px] text-zinc-500 font-normal">Desktop Node</span>
+                <span class="text-xs text-zinc-500 font-normal">Desktop Node</span>
               </span>
             </span>
           </button>
@@ -78,7 +78,7 @@ import { WalletService, WalletType } from '../../services/wallet.service';
               <img src="https://www.google.com/s2/favicons?domain=metamask.io&sz=128" class="h-8 w-8 rounded-full bg-white p-0.5" alt="MetaMask Logo">
                <span class="flex flex-col items-start">
                 <span class="group-hover:text-orange-400 transition-colors">MetaMask</span>
-                <span class="text-[10px] text-zinc-500 font-normal">Browser Extension</span>
+                <span class="text-xs text-zinc-500 font-normal">Browser Extension</span>
               </span>
             </span>
           </button>

@@ -16,7 +16,7 @@ import { WalletService } from '../../services/wallet.service';
         <!-- Typography Section -->
         <div class="lg:col-span-7 relative z-10 text-center lg:text-left">
            <div class="inline-flex items-center gap-2 mb-6 sm:mb-8 border-l-2 border-lime-400 pl-4 mx-auto lg:mx-0">
-              <span class="font-mono text-[10px] sm:text-xs text-lime-400 uppercase tracking-widest">Sys.Status: Online</span>
+              <span class="font-mono text-xs text-lime-400 uppercase tracking-widest">Sys.Status: Online</span>
               <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-lime-400 rounded-full animate-pulse"></span>
            </div>
 
@@ -53,25 +53,28 @@ import { WalletService } from '../../services/wallet.service';
 
               <!-- Content inside box -->
               <div class="space-y-6 sm:space-y-8">
+                 <div class="flex justify-between items-center mb-2">
+                    <span class="font-mono text-xs text-zinc-600 uppercase">Demo Data</span>
+                 </div>
                  <div class="flex justify-between items-end border-b border-white/10 pb-4">
-                    <span class="font-mono text-zinc-500 text-[10px] sm:text-xs">NETWORK_HASHRATE</span>
+                    <span class="font-mono text-zinc-500 text-xs">NETWORK_HASHRATE</span>
                     <span class="font-mono text-lg sm:text-xl text-white">450.2 PH/s</span>
                  </div>
                  <div class="flex justify-between items-end border-b border-white/10 pb-4">
-                    <span class="font-mono text-zinc-500 text-[10px] sm:text-xs">TOTAL_MINTED</span>
+                    <span class="font-mono text-zinc-500 text-xs">TOTAL_MINTED</span>
                     <span class="font-mono text-lg sm:text-xl text-lime-400">12,408</span>
                  </div>
                  <div class="flex justify-between items-end border-b border-white/10 pb-4">
-                    <span class="font-mono text-zinc-500 text-[10px] sm:text-xs">LATEST_BLOCK</span>
+                    <span class="font-mono text-zinc-500 text-xs">LATEST_BLOCK</span>
                     <span class="font-mono text-lg sm:text-xl text-white">#11,402,931</span>
                  </div>
               </div>
 
               <div class="mt-8 pt-4 border-t border-dashed border-white/20">
                  <div class="h-24 sm:h-32 bg-zinc-900 border border-white/5 relative overflow-hidden flex items-center justify-center group cursor-pointer hover:border-lime-500/50 transition-colors">
-                    <div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                    <div class="absolute inset-0 opacity-20 bg-noise-pattern"></div>
                     <div class="text-center px-4">
-                       <p class="font-mono text-[10px] text-zinc-500 uppercase mb-2">Featured Event</p>
+                       <p class="font-mono text-xs text-zinc-500 uppercase mb-2">Featured Event (Demo)</p>
                        <p class="font-display text-lg sm:text-xl font-bold text-white group-hover:text-lime-400 transition-colors truncate max-w-[200px]">CKB Summit SG</p>
                     </div>
                  </div>
@@ -112,10 +115,14 @@ import { WalletService } from '../../services/wallet.service';
     }
     .animate-marquee {
       animation: marquee 20s linear infinite;
+      will-change: transform;
     }
     @keyframes marquee {
       0% { transform: translateX(0); }
       100% { transform: translateX(-50%); }
+    }
+    .bg-noise-pattern {
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
     }
   `]
 })

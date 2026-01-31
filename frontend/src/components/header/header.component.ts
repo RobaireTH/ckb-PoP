@@ -23,7 +23,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
             </div>
             <div class="flex flex-col">
               <span class="font-display font-bold text-white leading-none tracking-tight">PoP Network</span>
-              <span class="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">Protocol V1.0</span>
+              <span class="font-mono text-xs text-zinc-500 uppercase tracking-widest">Protocol V1.0</span>
             </div>
           </a>
 
