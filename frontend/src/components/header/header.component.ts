@@ -15,9 +15,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           
           <!-- Brand -->
           <a routerLink="/" (click)="closeMenu()" class="flex items-center gap-3 group">
-            <div class="relative h-10 w-10 flex items-center justify-center overflow-hidden">
-               <img src="assets/ckb-pop.png" alt="PoP Logo" class="h-10 w-10 object-contain">
-            </div>
+            <img src="assets/ckb-pop.png" alt="PoP Logo" class="h-10 w-10 object-contain">
             <div class="flex flex-col">
               <span class="font-display font-bold text-white leading-none tracking-tight">PoP Network</span>
               <span class="font-mono text-xs text-zinc-500 uppercase tracking-widest">Protocol V1.0</span>
