@@ -22,7 +22,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
            </div>
            <h2 class="text-2xl font-bold tracking-tight text-white font-display">Login Required</h2>
            <p class="mt-2 text-zinc-400 mb-8 text-base">Connect your wallet to establish identity.</p>
-           <button (click)="showModal.set(true)" class="w-full sm:w-auto rounded-full bg-cyan-500 px-8 py-3.5 text-base font-bold text-black shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:bg-cyan-400 hover:scale-105 transition-all active:scale-95">
+           <button (click)="showModal.set(true)" class="w-full sm:w-auto rounded-full bg-lime-400 px-8 py-3.5 text-base font-bold text-black shadow-[0_0_20px_rgba(163,230,53,0.4)] hover:bg-lime-300 hover:scale-105 transition-all active:scale-95">
              Connect Wallet
            </button>
         </div>
@@ -65,18 +65,18 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
                  </div>
                  
                  <!-- Scan Line Animation -->
-                 <div class="absolute inset-x-0 h-0.5 bg-cyan-400 shadow-[0_0_20px_#22d3ee] scan-line z-20"></div>
+                 <div class="absolute inset-x-0 h-0.5 bg-lime-400 shadow-[0_0_20px_#a3e635] scan-line z-20"></div>
 
                  <!-- HUD Markers -->
-                 <div class="absolute top-8 left-8 w-12 h-12 border-l-2 border-t-2 border-cyan-500 rounded-tl-lg drop-shadow-[0_0_5px_#22d3ee]"></div>
-                 <div class="absolute top-8 right-8 w-12 h-12 border-r-2 border-t-2 border-cyan-500 rounded-tr-lg drop-shadow-[0_0_5px_#22d3ee]"></div>
-                 <div class="absolute bottom-8 left-8 w-12 h-12 border-l-2 border-b-2 border-cyan-500 rounded-bl-lg drop-shadow-[0_0_5px_#22d3ee]"></div>
-                 <div class="absolute bottom-8 right-8 w-12 h-12 border-r-2 border-b-2 border-cyan-500 rounded-br-lg drop-shadow-[0_0_5px_#22d3ee]"></div>
+                 <div class="absolute top-8 left-8 w-12 h-12 border-l-2 border-t-2 border-lime-400 rounded-tl-lg drop-shadow-[0_0_5px_#a3e635]"></div>
+                 <div class="absolute top-8 right-8 w-12 h-12 border-r-2 border-t-2 border-lime-400 rounded-tr-lg drop-shadow-[0_0_5px_#a3e635]"></div>
+                 <div class="absolute bottom-8 left-8 w-12 h-12 border-l-2 border-b-2 border-lime-400 rounded-bl-lg drop-shadow-[0_0_5px_#a3e635]"></div>
+                 <div class="absolute bottom-8 right-8 w-12 h-12 border-r-2 border-b-2 border-lime-400 rounded-br-lg drop-shadow-[0_0_5px_#a3e635]"></div>
               </div>
             } @else {
                <div class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/80 backdrop-blur-sm">
-                  <div class="p-5 sm:p-6 rounded-full bg-white/5 mb-6 border border-white/5 group-hover:border-cyan-500/30 transition-colors">
-                    <svg class="h-10 w-10 sm:h-12 sm:w-12 text-zinc-400 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div class="p-5 sm:p-6 rounded-full bg-white/5 mb-6 border border-white/5 group-hover:border-lime-400/30 transition-colors">
+                    <svg class="h-10 w-10 sm:h-12 sm:w-12 text-zinc-400 group-hover:text-lime-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
@@ -89,7 +89,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
             <!-- Simulators for Demo -->
             <div class="absolute bottom-4 inset-x-4 flex gap-2 justify-center z-30">
-               <button (click)="simulateScan('demo')" class="px-4 py-2 bg-black/60 hover:bg-cyan-900/30 backdrop-blur text-xs uppercase font-mono tracking-wider text-cyan-200 rounded-lg border border-cyan-500/20 hover:border-cyan-400/50 transition-colors">Debug: "Demo"</button>
+               <button (click)="simulateScan('demo')" class="px-4 py-2 bg-black/60 hover:bg-lime-900/30 backdrop-blur text-xs uppercase font-mono tracking-wider text-lime-200 rounded-lg border border-lime-500/20 hover:border-lime-400/50 transition-colors">Debug: "Demo"</button>
             </div>
           </div>
 
@@ -104,16 +104,16 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           </div>
 
           <div class="flex flex-col sm:flex-row gap-3">
-             <input 
+             <input
                [formControl]="manualCode"
-               type="text" 
+               type="text"
                placeholder="Enter Event ID..."
-               class="block w-full rounded-xl border-0 bg-zinc-900/50 py-3.5 sm:py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 placeholder:text-zinc-600 focus:ring-2 focus:ring-inset focus:ring-cyan-500 text-base sm:text-sm leading-6 font-mono transition-shadow"
+               class="block w-full rounded-xl border-0 bg-zinc-900/50 py-3.5 sm:py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 placeholder:text-zinc-600 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-6 font-mono transition-shadow"
              >
-             <button 
+             <button
                (click)="submitManual()"
                [disabled]="manualCode.invalid || isValidating()"
-               class="w-full sm:w-auto rounded-xl bg-cyan-600 px-8 py-3.5 sm:py-3 text-sm font-bold text-white shadow-lg hover:bg-cyan-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 disabled:opacity-50 disabled:grayscale transition-all active:scale-95">
+               class="w-full sm:w-auto rounded-xl bg-lime-400 px-8 py-3.5 sm:py-3 text-sm font-bold text-black shadow-lg hover:bg-lime-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500 disabled:opacity-50 disabled:grayscale transition-all active:scale-95">
                {{ isValidating() ? '...' : 'GO' }}
              </button>
           </div>
