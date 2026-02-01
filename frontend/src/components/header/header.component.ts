@@ -15,11 +15,8 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           
           <!-- Brand -->
           <a routerLink="/" (click)="closeMenu()" class="flex items-center gap-3 group">
-            <div class="relative h-8 w-8 bg-zinc-900 border border-white/10 flex items-center justify-center overflow-hidden">
-               <div class="absolute inset-0 bg-lime-400/0 group-hover:bg-lime-400/20 transition-colors"></div>
-               <span class="font-display font-bold text-white text-xl">P</span>
-               <!-- Corner Accent -->
-               <div class="absolute top-0 right-0 w-2 h-2 border-t border-r border-lime-400 opacity-50"></div>
+            <div class="relative h-8 w-8 flex items-center justify-center overflow-hidden">
+               <img src="assets/ckb-pop.png" alt="PoP Logo" class="h-8 w-8 object-contain">
             </div>
             <div class="flex flex-col">
               <span class="font-display font-bold text-white leading-none tracking-tight">PoP Network</span>
