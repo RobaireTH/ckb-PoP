@@ -13,7 +13,44 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
   imports: [CommonModule, RouterLink, WalletModalComponent],
   template: `
     <div class="min-h-[80vh] flex flex-col items-center justify-center py-10 px-4">
-      
+
+      <!-- STEP INDICATOR -->
+      <div class="w-full max-w-md mb-8">
+        <div class="flex justify-between items-center mb-4">
+          @for (step of ['Confirm', 'Sign', 'Mint']; track step; let i = $index) {
+            <div class="flex flex-col items-center gap-2 flex-1" [class.opacity-50]="getStepIndex() > i">
+              <!-- Step Circle -->
+              <div
+                class="w-8 h-8 flex items-center justify-center font-mono text-xs font-bold border-2 transition-all"
+                [class.border-lime-400]="getStepIndex() >= i"
+                [class.bg-lime-400]="getStepIndex() > i"
+                [class.text-black]="getStepIndex() > i"
+                [class.border-zinc-600]="getStepIndex() < i"
+                [class.text-zinc-400]="getStepIndex() < i"
+                [class.bg-zinc-900]="getStepIndex() < i"
+                [class.text-lime-400]="getStepIndex() === i"
+                [class.bg-zinc-950]="getStepIndex() === i"
+              >
+                {{ i + 1 }}
+              </div>
+              <!-- Step Label -->
+              <span class="text-xs font-mono uppercase tracking-widest"
+                [class.text-lime-400]="getStepIndex() >= i"
+                [class.text-zinc-500]="getStepIndex() < i">
+                {{ step }}
+              </span>
+              <!-- Connector -->
+              @if (i < 2) {
+                <div class="absolute w-12 h-0.5 mt-8 ml-12 -translate-y-16"
+                  [class.bg-lime-400]="getStepIndex() > i"
+                  [class.bg-zinc-700]="getStepIndex() <= i">
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
       <!-- CONFIRMATION STEP -->
       @if (currentStep() === 'confirm') {
         <div class="w-full max-w-md bg-zinc-950 border border-zinc-800 relative">
@@ -165,6 +202,16 @@ export class MintingComponent implements OnInit {
     } else {
       this.router.navigate(['/check-in']);
     }
+  }
+
+  getStepIndex() {
+    const stepMap: Record<Step, number> = {
+      'confirm': 0,
+      'signing': 1,
+      'minting': 1,
+      'success': 2
+    };
+    return stepMap[this.currentStep()];
   }
 
   startMinting() {
