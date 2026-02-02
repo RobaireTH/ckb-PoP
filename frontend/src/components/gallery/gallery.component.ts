@@ -181,7 +181,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
            }
 
            <!-- Grid -->
-           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-zinc-800 border-t border-b border-zinc-800 sm:border">
+           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-zinc-800 border-t border-b border-zinc-800 sm:border overflow-hidden">
 
              @if (loading()) {
                <!-- Skeleton Loaders -->
@@ -204,8 +204,8 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                  </div>
                }
              } @else if (activeTab() === 'badges') {
-               @for (badge of filteredBadges(); track badge.id) {
-                  <div class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors relative">
+               @for (badge of filteredBadges(); track badge.id; let i = $index) {
+                  <div class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
                     <!-- Image -->
                     <div class="aspect-square bg-black mb-6 relative overflow-hidden shadow-lg">
                        <img [src]="badge.imageUrl" class="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-500 opacity-80 group-hover:opacity-100">
@@ -225,7 +225,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                     </div>
                   </div>
                } @empty {
-                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16">
+                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16 tab-item">
                     <div class="max-w-md mx-auto text-center">
                       <!-- Icon -->
                       <div class="w-16 h-16 border border-dashed border-zinc-700 mx-auto mb-6 flex items-center justify-center">
@@ -259,8 +259,8 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                }
              } @else {
                <!-- EVENTS TAB -->
-               @for (event of poapService.myCreatedEvents(); track event.id) {
-                  <div (click)="openEventDetails(event)" class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors cursor-pointer relative">
+               @for (event of poapService.myCreatedEvents(); track event.id; let i = $index) {
+                  <div (click)="openEventDetails(event)" class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors cursor-pointer relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
 
                     <!-- Event Banner -->
                     <div class="aspect-video w-full bg-zinc-900 mb-6 relative overflow-hidden border border-white/5 shadow-lg">
@@ -286,7 +286,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                     </div>
                   </div>
                } @empty {
-                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16">
+                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16 tab-item">
                     <div class="max-w-md mx-auto text-center">
                       <!-- Icon -->
                       <div class="w-16 h-16 border border-dashed border-zinc-700 mx-auto mb-6 flex items-center justify-center">
@@ -417,6 +417,20 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
     @keyframes shimmer {
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
+    }
+    @keyframes tab-fade-in {
+      0% {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .tab-item {
+      animation: tab-fade-in 0.4s ease-out forwards;
+      opacity: 0;
     }
   `]
 })
