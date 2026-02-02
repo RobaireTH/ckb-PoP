@@ -55,35 +55,57 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           <div class="relative overflow-hidden rounded-3xl bg-black aspect-square shadow-2xl border border-white/10 group">
 
             @if (isScanning()) {
-              <div class="absolute inset-0 flex items-center justify-center">
-                 <!-- Mock Camera Feed Background -->
-                 <div class="absolute inset-0 bg-zinc-900 opacity-50 animate-pulse bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop')] bg-cover grayscale opacity-20"></div>
+              <div class="absolute inset-0">
+                 <!-- Gradient Background -->
+                 <div class="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900"></div>
 
-                 <div class="relative z-10 flex gap-2 items-center bg-black/60 backdrop-blur border border-white/10 px-3 py-1 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                    <span class="text-xs font-mono text-zinc-300">REC • LIVE</span>
+                 <!-- Grid Pattern -->
+                 <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(rgba(163,230,53,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(163,230,53,0.3) 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+                 <!-- Center QR Frame -->
+                 <div class="absolute inset-0 flex items-center justify-center">
+                   <div class="relative w-48 h-48">
+                     <!-- Animated Corner Brackets -->
+                     <div class="absolute top-0 left-0 w-8 h-8 border-l-3 border-t-3 border-lime-400 animate-pulse"></div>
+                     <div class="absolute top-0 right-0 w-8 h-8 border-r-3 border-t-3 border-lime-400 animate-pulse"></div>
+                     <div class="absolute bottom-0 left-0 w-8 h-8 border-l-3 border-b-3 border-lime-400 animate-pulse"></div>
+                     <div class="absolute bottom-0 right-0 w-8 h-8 border-r-3 border-b-3 border-lime-400 animate-pulse"></div>
+
+                     <!-- Inner glow -->
+                     <div class="absolute inset-4 border border-lime-400/20 bg-lime-400/5"></div>
+
+                     <!-- Scanning line -->
+                     <div class="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-lime-400 to-transparent shadow-[0_0_15px_#a3e635] scan-line"></div>
+                   </div>
                  </div>
 
-                 <!-- Scan Line Animation -->
-                 <div class="absolute inset-x-0 h-0.5 bg-lime-400 shadow-[0_0_20px_#a3e635] scan-line z-20"></div>
+                 <!-- Status Bar -->
+                 <div class="absolute top-4 inset-x-4 flex justify-between items-center">
+                   <div class="flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/10">
+                     <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                     <span class="text-[10px] font-mono text-zinc-300 uppercase tracking-wider">Scanning</span>
+                   </div>
+                   <div class="bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/10">
+                     <span class="text-[10px] font-mono text-lime-400">READY</span>
+                   </div>
+                 </div>
 
-                 <!-- HUD Markers -->
-                 <div class="absolute top-8 left-8 w-12 h-12 border-l-2 border-t-2 border-lime-400 rounded-tl-lg drop-shadow-[0_0_5px_#a3e635]"></div>
-                 <div class="absolute top-8 right-8 w-12 h-12 border-r-2 border-t-2 border-lime-400 rounded-tr-lg drop-shadow-[0_0_5px_#a3e635]"></div>
-                 <div class="absolute bottom-8 left-8 w-12 h-12 border-l-2 border-b-2 border-lime-400 rounded-bl-lg drop-shadow-[0_0_5px_#a3e635]"></div>
-                 <div class="absolute bottom-8 right-8 w-12 h-12 border-r-2 border-b-2 border-lime-400 rounded-br-lg drop-shadow-[0_0_5px_#a3e635]"></div>
+                 <!-- Instructions -->
+                 <div class="absolute bottom-16 inset-x-4 text-center">
+                   <p class="text-xs font-mono text-zinc-400">Position QR code within frame</p>
+                 </div>
               </div>
             } @else {
                <div class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/80 backdrop-blur-sm">
                   <div class="p-5 sm:p-6 rounded-full bg-white/5 mb-6 border border-white/5 group-hover:border-lime-400/30 transition-colors">
                     <svg class="h-10 w-10 sm:h-12 sm:w-12 text-zinc-400 group-hover:text-lime-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                     </svg>
                   </div>
                   <button (click)="startScanning()" class="rounded-full bg-zinc-800 border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-700 hover:border-zinc-500 transition-all active:scale-95">
-                    Initialize Scanner
+                    Start Scanner
                   </button>
+                  <p class="mt-4 text-xs text-zinc-500 font-mono">Camera access required</p>
                </div>
             }
 
@@ -220,6 +242,17 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
     .animate-fade-in-up {
       animation: fade-in-up 0.6s ease-out forwards;
     }
+    @keyframes scan {
+      0%, 100% { top: 0; }
+      50% { top: calc(100% - 2px); }
+    }
+    .scan-line {
+      animation: scan 2s ease-in-out infinite;
+    }
+    .border-l-3 { border-left-width: 3px; }
+    .border-r-3 { border-right-width: 3px; }
+    .border-t-3 { border-top-width: 3px; }
+    .border-b-3 { border-bottom-width: 3px; }
   `]
 })
 export class CheckInComponent {

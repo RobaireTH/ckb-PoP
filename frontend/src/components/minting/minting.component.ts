@@ -118,7 +118,7 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
                     Connect Wallet
                  </button>
             } @else {
-                 <button (click)="startMinting()" class="w-full bg-lime-400 hover:bg-lime-300 text-black font-bold py-4 uppercase tracking-widest transition-colors flex justify-center gap-2 items-center group">
+                 <button (click)="showConfirmDialog.set(true)" class="w-full bg-lime-400 hover:bg-lime-300 text-black font-bold py-4 uppercase tracking-widest transition-colors flex justify-center gap-2 items-center group">
                     <span>Sign Transaction</span>
                     <span class="group-hover:translate-x-1 transition-transform">-></span>
                  </button>
@@ -202,6 +202,59 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
     @if (showWalletModal()) {
       <app-wallet-modal (close)="showWalletModal.set(false)"></app-wallet-modal>
     }
+
+    <!-- Confirmation Dialog -->
+    @if (showConfirmDialog()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" (click)="showConfirmDialog.set(false)"></div>
+
+        <div class="relative w-full max-w-sm bg-zinc-950 border border-zinc-800 shadow-2xl p-6 animate-fade-in-up">
+          <!-- Warning Icon -->
+          <div class="w-16 h-16 mx-auto mb-6 bg-lime-400/10 border border-lime-400/30 flex items-center justify-center">
+            <svg class="w-8 h-8 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+
+          <h3 class="font-display text-xl font-bold text-white text-center mb-2">Confirm Minting</h3>
+          <p class="font-mono text-sm text-zinc-400 text-center mb-6">
+            Are you sure you want to mint this badge? This action will create an on-chain transaction.
+          </p>
+
+          <!-- Transaction Summary -->
+          <div class="bg-zinc-900 border border-zinc-800 p-4 mb-6 space-y-2">
+            <div class="flex justify-between text-xs">
+              <span class="font-mono text-zinc-500">Event</span>
+              <span class="font-mono text-white truncate ml-4">{{ event()?.name }}</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="font-mono text-zinc-500">Network Fee</span>
+              <span class="font-mono text-lime-400">~0.0001 CKB</span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="font-mono text-zinc-500">Type</span>
+              <span class="font-mono text-zinc-300">Soulbound Token</span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-3">
+            <button
+              (click)="showConfirmDialog.set(false)"
+              class="flex-1 py-3 border border-zinc-700 text-zinc-300 font-bold uppercase tracking-wider text-sm hover:bg-zinc-900 hover:border-zinc-600 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              (click)="confirmAndMint()"
+              class="flex-1 py-3 bg-lime-400 text-black font-bold uppercase tracking-wider text-sm hover:bg-lime-300 transition-colors"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .bg-stripes {
@@ -251,6 +304,7 @@ export class MintingComponent implements OnInit {
   currentStep = signal<Step>('confirm');
   earnedBadge = signal<Badge | null>(null);
   showWalletModal = signal(false);
+  showConfirmDialog = signal(false);
 
   steps = [
     { id: 'confirm', label: 'Confirm', icon: '◈', status: 'READY' },
@@ -275,6 +329,11 @@ export class MintingComponent implements OnInit {
       'success': 2
     };
     return stepMap[this.currentStep()];
+  }
+
+  confirmAndMint() {
+    this.showConfirmDialog.set(false);
+    this.startMinting();
   }
 
   startMinting() {
