@@ -9,7 +9,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
   template: `
     <!-- Mobile Bottom Navigation - only visible on mobile -->
     <nav class="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-black/90 backdrop-blur-lg border-t border-white/10 safe-area-bottom">
-      <div class="flex items-center justify-around h-18 px-2">
+      <div class="flex items-center justify-around py-2 px-2">
 
         <!-- Home -->
         <a routerLink="/"
