@@ -18,15 +18,60 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
       <div class="max-w-[1400px] mx-auto">
 
         @if (!walletService.isConnected()) {
-           <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center max-w-lg mx-4 sm:mx-auto mt-20">
-             <div class="w-16 h-16 bg-zinc-800 mx-auto mb-6 flex items-center justify-center">
-                <svg class="w-8 h-8 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+           <div class="max-w-2xl mx-4 sm:mx-auto mt-16">
+             <!-- Main Card -->
+             <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center relative overflow-hidden">
+               <!-- Background Pattern -->
+               <div class="absolute inset-0 opacity-5">
+                 <div class="absolute inset-0" style="background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 24px 24px;"></div>
+               </div>
+
+               <div class="relative z-10">
+                 <!-- Icon -->
+                 <div class="w-20 h-20 bg-zinc-800 mx-auto mb-6 flex items-center justify-center border border-zinc-700">
+                   <svg class="w-10 h-10 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                   </svg>
+                 </div>
+
+                 <h2 class="font-display text-3xl text-white mb-3">Your Digital Collection</h2>
+                 <p class="font-mono text-sm text-zinc-400 mb-8 max-w-md mx-auto">
+                   Connect your wallet to view badges, certificates, and events you've created or attended.
+                 </p>
+
+                 <button (click)="showModal.set(true)" class="bg-lime-400 text-black font-bold uppercase tracking-widest px-8 py-4 hover:bg-lime-300 transition-colors w-full sm:w-auto mb-6">
+                   Connect Wallet
+                 </button>
+
+                 <!-- Features Preview -->
+                 <div class="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-zinc-800">
+                   <div class="text-center">
+                     <div class="font-mono text-2xl text-white mb-1">◈</div>
+                     <div class="font-mono text-[10px] text-zinc-500 uppercase">Badges</div>
+                   </div>
+                   <div class="text-center">
+                     <div class="font-mono text-2xl text-white mb-1">◇</div>
+                     <div class="font-mono text-[10px] text-zinc-500 uppercase">Certificates</div>
+                   </div>
+                   <div class="text-center">
+                     <div class="font-mono text-2xl text-white mb-1">⬡</div>
+                     <div class="font-mono text-[10px] text-zinc-500 uppercase">Events</div>
+                   </div>
+                 </div>
+               </div>
              </div>
-             <h2 class="font-display text-2xl text-white mb-2">Encrypted Archive</h2>
-             <p class="font-mono text-sm text-zinc-500 mb-8">Authenticate to view assets.</p>
-             <button (click)="showModal.set(true)" class="bg-white text-black font-bold uppercase tracking-widest px-8 py-3 hover:bg-lime-400 transition-colors w-full sm:w-auto">
-                Connect Wallet
-             </button>
+
+             <!-- Quick Actions -->
+             <div class="grid grid-cols-2 gap-px mt-px bg-zinc-800">
+               <a routerLink="/check-in" class="bg-zinc-950 p-6 text-center hover:bg-zinc-900 transition-colors group">
+                 <div class="font-mono text-xs text-zinc-500 group-hover:text-lime-400 uppercase tracking-wider">Have a code?</div>
+                 <div class="font-display text-white mt-1">Check In →</div>
+               </a>
+               <a routerLink="/create" class="bg-zinc-950 p-6 text-center hover:bg-zinc-900 transition-colors group">
+                 <div class="font-mono text-xs text-zinc-500 group-hover:text-lime-400 uppercase tracking-wider">Hosting?</div>
+                 <div class="font-display text-white mt-1">Create Event →</div>
+               </a>
+             </div>
            </div>
         } @else {
 
@@ -180,8 +225,36 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                     </div>
                   </div>
                } @empty {
-                  <div class="col-span-full bg-zinc-950 p-20 text-center font-mono text-zinc-600">
-                     {{ roleFilter() === 'all' ? 'NO_ASSETS_FOUND' : 'NO_' + roleFilter().toUpperCase() + '_BADGES' }}
+                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16">
+                    <div class="max-w-md mx-auto text-center">
+                      <!-- Icon -->
+                      <div class="w-16 h-16 border border-dashed border-zinc-700 mx-auto mb-6 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                      </div>
+
+                      @if (roleFilter() === 'all') {
+                        <h3 class="font-display text-xl text-white mb-2">No Badges Yet</h3>
+                        <p class="font-mono text-sm text-zinc-500 mb-6">
+                          Attend events and collect proof-of-presence badges on the blockchain.
+                        </p>
+                        <a routerLink="/check-in" class="inline-flex items-center gap-2 bg-lime-400 text-black font-bold text-sm uppercase tracking-wider px-6 py-3 hover:bg-lime-300 transition-colors">
+                          <span>Check Into Event</span>
+                          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                          </svg>
+                        </a>
+                      } @else {
+                        <h3 class="font-display text-xl text-white mb-2">No {{ roleFilter() }} Badges</h3>
+                        <p class="font-mono text-sm text-zinc-500 mb-6">
+                          You don't have any badges with the "{{ roleFilter() }}" role yet.
+                        </p>
+                        <button (click)="roleFilter.set('all')" class="inline-flex items-center gap-2 border border-zinc-700 text-white font-mono text-sm uppercase tracking-wider px-6 py-3 hover:border-lime-400 hover:text-lime-400 transition-colors">
+                          View All Badges
+                        </button>
+                      }
+                    </div>
                   </div>
                }
              } @else {
@@ -213,8 +286,46 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                     </div>
                   </div>
                } @empty {
-                  <div class="col-span-full bg-zinc-950 p-20 text-center font-mono text-zinc-600">
-                     NO_CONTRACTS_DEPLOYED
+                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16">
+                    <div class="max-w-md mx-auto text-center">
+                      <!-- Icon -->
+                      <div class="w-16 h-16 border border-dashed border-zinc-700 mx-auto mb-6 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+
+                      <h3 class="font-display text-xl text-white mb-2">No Events Created</h3>
+                      <p class="font-mono text-sm text-zinc-500 mb-6">
+                        Create your first event and start issuing proof-of-presence badges to attendees.
+                      </p>
+
+                      <a routerLink="/create" class="inline-flex items-center gap-2 bg-lime-400 text-black font-bold text-sm uppercase tracking-wider px-6 py-3 hover:bg-lime-300 transition-colors">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Create Event</span>
+                      </a>
+
+                      <!-- Tips -->
+                      <div class="mt-8 pt-6 border-t border-zinc-800 text-left">
+                        <div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mb-3">What you can do:</div>
+                        <ul class="space-y-2 font-mono text-xs text-zinc-400">
+                          <li class="flex items-start gap-2">
+                            <span class="text-lime-400 mt-0.5">→</span>
+                            <span>Host conferences, meetups, or workshops</span>
+                          </li>
+                          <li class="flex items-start gap-2">
+                            <span class="text-lime-400 mt-0.5">→</span>
+                            <span>Display rotating QR codes for attendee check-in</span>
+                          </li>
+                          <li class="flex items-start gap-2">
+                            <span class="text-lime-400 mt-0.5">→</span>
+                            <span>Issue verifiable on-chain attendance badges</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                }
              }
