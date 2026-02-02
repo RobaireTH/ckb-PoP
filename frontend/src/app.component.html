@@ -1,20 +1,48 @@
 <div class="flex min-h-screen flex-col overflow-x-hidden">
   <app-header></app-header>
-  <app-offline-banner></app-offline-banner>
-  <main id="main-content" class="flex-1 relative z-10 pb-20 md:pb-0 overflow-x-hidden" role="main" tabindex="-1">
-    <router-outlet></router-outlet>
-  </main>
-  <footer class="border-t border-white/5 bg-zinc-950/80 backdrop-blur mt-auto hidden md:block">
-    <div class="mx-auto max-w-7xl px-6 py-6 md:py-8 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 lg:px-8">
-      <p class="text-center text-xs leading-5 text-zinc-500 order-2 md:order-1">
-        &copy; 2026 Proof of Presence Network.
-      </p>
-      <a href="https://www.nervos.org" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 text-xs text-zinc-500 hover:text-white transition-colors order-1 md:order-2">
-        <img src="https://www.google.com/s2/favicons?domain=nervos.org&sz=128" class="h-4 w-4 rounded-full" alt="Nervos Logo">
-        <span>Powered by the Nervos Ecosystem</span>
-      </a>
+
+  @if (offlineService.isOffline()) {
+    <!-- Full-screen offline overlay -->
+    <div class="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center px-6" role="alert" aria-live="assertive">
+      <div class="text-center max-w-md">
+        <!-- Offline icon -->
+        <div class="mx-auto w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6">
+          <svg class="w-10 h-10 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+          </svg>
+        </div>
+
+        <h1 class="text-2xl font-bold text-white mb-3">You're Offline</h1>
+        <p class="text-zinc-400 mb-8">
+          CKB-PoP requires an internet connection to interact with the blockchain. Please check your connection and try again.
+        </p>
+
+        <!-- Pulse indicator -->
+        <div class="flex items-center justify-center gap-2 text-zinc-500">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+          </span>
+          <span class="text-sm font-mono uppercase tracking-wider">Waiting for connection</span>
+        </div>
+      </div>
     </div>
-  </footer>
-  <app-bottom-nav></app-bottom-nav>
+  } @else {
+    <main id="main-content" class="flex-1 relative z-10 pb-20 md:pb-0 overflow-x-hidden" role="main" tabindex="-1">
+      <router-outlet></router-outlet>
+    </main>
+    <footer class="border-t border-white/5 bg-zinc-950/80 backdrop-blur mt-auto hidden md:block">
+      <div class="mx-auto max-w-7xl px-6 py-6 md:py-8 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 lg:px-8">
+        <p class="text-center text-xs leading-5 text-zinc-500 order-2 md:order-1">
+          &copy; 2026 Proof of Presence Network.
+        </p>
+        <a href="https://www.nervos.org" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 text-xs text-zinc-500 hover:text-white transition-colors order-1 md:order-2">
+          <img src="https://www.google.com/s2/favicons?domain=nervos.org&sz=128" class="h-4 w-4 rounded-full" alt="Nervos Logo">
+          <span>Powered by the Nervos Ecosystem</span>
+        </a>
+      </div>
+    </footer>
+    <app-bottom-nav></app-bottom-nav>
+  }
 </div>
 <app-toast></app-toast>
