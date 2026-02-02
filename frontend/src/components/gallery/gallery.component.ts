@@ -126,7 +126,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                    @for (role of roleFilters; track role) {
                      <button
                        (click)="roleFilter.set(role)"
-                       class="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-all"
+                       class="px-4 py-2.5 font-mono text-[10px] uppercase tracking-wider border transition-all min-h-[44px]"
                        [class.bg-lime-400]="roleFilter() === role"
                        [class.text-black]="roleFilter() === role"
                        [class.border-lime-400]="roleFilter() === role"
@@ -147,7 +147,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                  <div class="relative">
                    <button
                      (click)="showSortDropdown.set(!showSortDropdown())"
-                     class="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700 font-mono text-[10px] uppercase tracking-wider text-zinc-300 hover:border-zinc-500 transition-colors"
+                     class="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-700 font-mono text-[10px] uppercase tracking-wider text-zinc-300 hover:border-zinc-500 transition-colors min-h-[44px]"
                    >
                      <span>{{ getSortLabel(sortOption()) }}</span>
                      <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -159,7 +159,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                        @for (option of sortOptions; track option.value) {
                          <button
                            (click)="sortOption.set(option.value); showSortDropdown.set(false)"
-                           class="w-full px-3 py-2 text-left font-mono text-[10px] uppercase tracking-wider transition-colors"
+                           class="w-full px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider transition-colors min-h-[44px]"
                            [class.bg-lime-400]="sortOption() === option.value"
                            [class.text-black]="sortOption() === option.value"
                            [class.text-zinc-300]="sortOption() !== option.value"
@@ -222,8 +222,8 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
 
                     <div class="border-t border-white/10 pt-4 flex justify-between items-center relative">
                        <span class="font-mono text-xs text-zinc-400">{{ badge.mintDate | date:'MM.dd.yy' }}</span>
-                       <button class="w-6 h-6 border border-white/20 flex items-center justify-center text-zinc-500 hover:text-white hover:border-lime-400 hover:bg-lime-400/10 transition-all rounded-sm backdrop-blur">
-                          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                       <button class="w-10 h-10 border border-white/20 flex items-center justify-center text-zinc-500 hover:text-white hover:border-lime-400 hover:bg-lime-400/10 transition-all rounded-sm backdrop-blur">
+                          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                        </button>
                     </div>
                   </div>
@@ -354,7 +354,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
 
            <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
               <h2 class="font-mono text-xs uppercase text-zinc-500">Event_Details // {{ selectedEvent()?.id }}</h2>
-              <button (click)="selectedEvent.set(null)" class="text-white hover:text-lime-400 p-2">
+              <button (click)="selectedEvent.set(null)" class="w-10 h-10 flex items-center justify-center text-white hover:text-lime-400 hover:bg-white/10 rounded transition-colors -mr-2">
                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
            </div>

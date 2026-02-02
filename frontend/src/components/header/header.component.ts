@@ -53,12 +53,12 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           <!-- Wallet Actions -->
           <div>
             @if (walletService.isConnected()) {
-              <button (click)="openWalletModal()" class="flex items-center gap-3 pl-3 pr-4 py-1.5 bg-zinc-900 border border-white/10 hover:border-lime-400/50 transition-all group">
+              <button (click)="openWalletModal()" class="flex items-center gap-3 pl-4 pr-5 py-2.5 bg-zinc-900 border border-white/10 hover:border-lime-400/50 transition-all group min-h-[44px]">
                 <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
                 <span class="font-mono text-xs text-zinc-300 group-hover:text-white">{{ walletService.shortAddress() }}</span>
               </button>
             } @else {
-              <button (click)="openWalletModal()" class="relative px-6 py-2 bg-zinc-100 hover:bg-lime-400 hover:scale-105 transition-all duration-300 group">
+              <button (click)="openWalletModal()" class="relative px-6 py-2.5 bg-zinc-100 hover:bg-lime-400 hover:scale-105 transition-all duration-300 group min-h-[44px]">
                 <span class="relative z-10 text-xs font-bold uppercase tracking-wider text-black">Connect</span>
                 <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black opacity-0 group-hover:opacity-100 transition-opacity"></div>

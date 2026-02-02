@@ -62,7 +62,7 @@ import { ToastService, Toast } from '../../services/toast.service';
           <!-- Close Button -->
           <button
             (click)="toastService.dismiss(toast.id)"
-            class="flex-shrink-0 text-zinc-500 hover:text-white transition-colors"
+            class="flex-shrink-0 w-8 h-8 flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/10 transition-colors rounded -mr-1 -mt-1"
           >
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
