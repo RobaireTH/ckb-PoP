@@ -23,30 +23,30 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           </a>
 
           <!-- Desktop Navigation -->
-          <nav class="hidden md:flex items-center gap-8">
-             <a routerLink="/check-in" 
-                routerLinkActive="text-lime-400" 
+          <nav class="hidden md:flex items-center gap-1">
+             <a routerLink="/check-in"
+                routerLinkActive="active-nav-item"
                 #rlaCheckIn="routerLinkActive"
-                class="text-sm font-medium text-zinc-400 hover:text-white transition-colors relative py-2">
-               Check In
-               <span class="absolute -bottom-[17px] left-0 w-full h-[1px] bg-lime-400 scale-x-0 transition-transform origin-left" 
-                     [class.scale-x-100]="rlaCheckIn.isActive"></span>
+                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group">
+               <span class="relative z-10">Check In</span>
+               <span class="nav-bg"></span>
+               <span class="nav-indicator" [class.active]="rlaCheckIn.isActive"></span>
              </a>
-             <a routerLink="/create" 
-                routerLinkActive="text-lime-400" 
+             <a routerLink="/create"
+                routerLinkActive="active-nav-item"
                 #rlaCreate="routerLinkActive"
-                class="text-sm font-medium text-zinc-400 hover:text-white transition-colors relative py-2">
-               Create Event
-               <span class="absolute -bottom-[17px] left-0 w-full h-[1px] bg-lime-400 scale-x-0 transition-transform origin-left" 
-                     [class.scale-x-100]="rlaCreate.isActive"></span>
+                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group">
+               <span class="relative z-10">Create Event</span>
+               <span class="nav-bg"></span>
+               <span class="nav-indicator" [class.active]="rlaCreate.isActive"></span>
              </a>
-             <a routerLink="/gallery" 
-                routerLinkActive="text-lime-400" 
+             <a routerLink="/gallery"
+                routerLinkActive="active-nav-item"
                 #rlaGallery="routerLinkActive"
-                class="text-sm font-medium text-zinc-400 hover:text-white transition-colors relative py-2">
-               Dashboard
-               <span class="absolute -bottom-[17px] left-0 w-full h-[1px] bg-lime-400 scale-x-0 transition-transform origin-left" 
-                     [class.scale-x-100]="rlaGallery.isActive"></span>
+                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group">
+               <span class="relative z-10">Dashboard</span>
+               <span class="nav-bg"></span>
+               <span class="nav-indicator" [class.active]="rlaGallery.isActive"></span>
              </a>
           </nav>
 
@@ -121,6 +121,45 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
     }
     .animate-fade-in {
       animation: fade-in 0.3s ease-out forwards;
+    }
+
+    /* Nav item styles */
+    .nav-item {
+      position: relative;
+      overflow: hidden;
+    }
+    .nav-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(163, 230, 53, 0.1);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .nav-item:hover .nav-bg {
+      transform: scaleX(1);
+    }
+    .nav-indicator {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 0;
+      height: 2px;
+      background: #a3e635;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateX(-50%);
+      box-shadow: 0 0 10px rgba(163, 230, 53, 0.5);
+    }
+    .nav-indicator.active {
+      width: 100%;
+      left: 0;
+      transform: translateX(0);
+    }
+    .nav-item:hover .nav-indicator:not(.active) {
+      width: 30%;
+    }
+    .active-nav-item {
+      color: #a3e635 !important;
     }
   `]
 })
