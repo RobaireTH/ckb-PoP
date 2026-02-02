@@ -7,7 +7,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
 type Tab = 'badges' | 'events';
 type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
-type RoleFilter = 'all' | 'Attendee' | 'Speaker' | 'Organizer';
+type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
 
 @Component({
   selector: 'app-gallery',
@@ -323,7 +323,7 @@ export class GalleryComponent implements OnInit {
   sortOption = signal<SortOption>('newest');
   showSortDropdown = signal(false);
 
-  roleFilters: RoleFilter[] = ['all', 'Attendee', 'Speaker', 'Organizer'];
+  roleFilters: RoleFilter[] = ['all', 'Attendee', 'Organizer', 'Certificate'];
   sortOptions = [
     { value: 'newest' as SortOption, label: 'Newest First' },
     { value: 'oldest' as SortOption, label: 'Oldest First' },

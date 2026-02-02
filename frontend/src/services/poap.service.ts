@@ -21,7 +21,7 @@ export interface Badge {
   txHash: string;
   imageUrl: string;
   aiDescription?: string;
-  role: 'Attendee' | 'Speaker' | 'Organizer';
+  role: 'Attendee' | 'Organizer' | 'Certificate';
 }
 
 export interface Attendee {
