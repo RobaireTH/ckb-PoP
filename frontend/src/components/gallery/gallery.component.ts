@@ -418,19 +418,33 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
     }
-    @keyframes tab-fade-in {
+    @keyframes card-fade-in {
       0% {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(20px) scale(0.95);
+      }
+      60% {
+        transform: translateY(-5px) scale(1.02);
       }
       100% {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
+      }
+    }
+    @keyframes card-glow {
+      0%, 100% {
+        box-shadow: 0 0 0 rgba(163, 230, 53, 0);
+      }
+      50% {
+        box-shadow: 0 0 20px rgba(163, 230, 53, 0.1);
       }
     }
     .tab-item {
-      animation: tab-fade-in 0.4s ease-out forwards;
+      animation: card-fade-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       opacity: 0;
+    }
+    .tab-item:hover {
+      animation: card-glow 2s ease-in-out infinite;
     }
   `]
 })
