@@ -1,9 +1,9 @@
 <div class="flex min-h-screen flex-col">
   <app-header></app-header>
-  <main class="flex-1 relative z-10">
+  <main class="flex-1 relative z-10 pb-20 md:pb-0">
     <router-outlet></router-outlet>
   </main>
-  <footer class="border-t border-white/5 bg-zinc-950/80 backdrop-blur mt-auto">
+  <footer class="border-t border-white/5 bg-zinc-950/80 backdrop-blur mt-auto hidden md:block">
     <div class="mx-auto max-w-7xl px-6 py-6 md:py-8 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 lg:px-8">
       <p class="text-center text-xs leading-5 text-zinc-500 order-2 md:order-1">
         &copy; 2026 Proof of Presence Network.
@@ -14,5 +14,6 @@
       </a>
     </div>
   </footer>
+  <app-bottom-nav></app-bottom-nav>
 </div>
 <app-toast></app-toast>
