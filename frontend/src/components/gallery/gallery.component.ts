@@ -14,11 +14,11 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
   standalone: true,
   imports: [CommonModule, WalletModalComponent, RouterLink],
   template: `
-    <div class="min-h-screen py-24 px-0 sm:px-6 lg:px-8">
-      <div class="max-w-[1400px] mx-auto">
+    <div class="min-h-screen py-24 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
+      <div class="max-w-[1400px] mx-auto overflow-hidden">
 
         @if (!walletService.isConnected()) {
-           <div class="max-w-2xl mx-4 sm:mx-auto mt-16">
+           <div class="max-w-2xl mx-auto mt-16">
              <!-- Main Card -->
              <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center relative overflow-hidden">
                <!-- Background Pattern -->
@@ -76,16 +76,16 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
         } @else {
 
            <!-- Controls Header -->
-           <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-6 border-b border-zinc-800 pb-6 px-4 sm:px-0">
-              <div>
+           <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-6 border-b border-zinc-800 pb-6">
+              <div class="min-w-0">
                  <h1 class="font-display text-3xl sm:text-4xl text-white mb-2">My Assets</h1>
 
                  <!-- Copy Address Button -->
                  <button
                    (click)="copyAddress()"
-                   class="group flex items-center gap-2 font-mono text-xs text-zinc-500 hover:text-white transition-colors active:scale-95 origin-left"
+                   class="group flex items-center gap-2 font-mono text-xs text-zinc-500 hover:text-white transition-colors active:scale-95 origin-left max-w-full"
                    title="Copy Address">
-                    <span>{{ walletService.address() }}</span>
+                    <span class="truncate max-w-[200px] sm:max-w-none">{{ walletService.address() }}</span>
                     @if (copied()) {
                       <span class="text-lime-400 font-bold text-[10px] uppercase tracking-wider animate-pulse">COPIED</span>
                     } @else {
@@ -118,15 +118,15 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
 
            <!-- Filter/Sort Controls for Badges -->
            @if (activeTab() === 'badges') {
-             <div class="flex flex-wrap items-center gap-3 mb-6 px-4 sm:px-0">
+             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-6">
                <!-- Role Filter -->
-               <div class="flex items-center gap-2">
-                 <span class="font-mono text-[10px] text-zinc-500 uppercase">Filter:</span>
+               <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+                 <span class="font-mono text-[10px] text-zinc-500 uppercase shrink-0">Filter:</span>
                  <div class="flex gap-1">
                    @for (role of roleFilters; track role) {
                      <button
                        (click)="roleFilter.set(role)"
-                       class="px-4 py-2.5 font-mono text-[10px] uppercase tracking-wider border transition-all min-h-[44px]"
+                       class="px-3 sm:px-4 py-2 sm:py-2.5 font-mono text-[10px] uppercase tracking-wider border transition-all min-h-[44px] whitespace-nowrap"
                        [class.bg-lime-400]="roleFilter() === role"
                        [class.text-black]="roleFilter() === role"
                        [class.border-lime-400]="roleFilter() === role"
@@ -142,7 +142,7 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                </div>
 
                <!-- Sort Dropdown -->
-               <div class="flex items-center gap-2 ml-auto">
+               <div class="flex items-center gap-2 sm:ml-auto">
                  <span class="font-mono text-[10px] text-zinc-500 uppercase">Sort:</span>
                  <div class="relative">
                    <button
