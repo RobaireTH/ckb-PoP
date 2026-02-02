@@ -1,11 +1,13 @@
-import { Component, inject, signal, OnInit, effect } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { PoapService, PoPEvent, Attendee } from '../../services/poap.service';
+import { PoapService, PoPEvent, Attendee, Badge } from '../../services/poap.service';
 import { WalletService } from '../../services/wallet.service';
 import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
 type Tab = 'badges' | 'events';
+type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
+type RoleFilter = 'all' | 'Attendee' | 'Speaker' | 'Organizer';
 
 @Component({
   selector: 'app-gallery',
@@ -69,6 +71,70 @@ type Tab = 'badges' | 'events';
               </div>
            </div>
 
+           <!-- Filter/Sort Controls for Badges -->
+           @if (activeTab() === 'badges') {
+             <div class="flex flex-wrap items-center gap-3 mb-6 px-4 sm:px-0">
+               <!-- Role Filter -->
+               <div class="flex items-center gap-2">
+                 <span class="font-mono text-[10px] text-zinc-500 uppercase">Filter:</span>
+                 <div class="flex gap-1">
+                   @for (role of roleFilters; track role) {
+                     <button
+                       (click)="roleFilter.set(role)"
+                       class="px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider border transition-all"
+                       [class.bg-lime-400]="roleFilter() === role"
+                       [class.text-black]="roleFilter() === role"
+                       [class.border-lime-400]="roleFilter() === role"
+                       [class.bg-transparent]="roleFilter() !== role"
+                       [class.text-zinc-400]="roleFilter() !== role"
+                       [class.border-zinc-700]="roleFilter() !== role"
+                       [class.hover:border-zinc-500]="roleFilter() !== role"
+                     >
+                       {{ role === 'all' ? 'All' : role }}
+                     </button>
+                   }
+                 </div>
+               </div>
+
+               <!-- Sort Dropdown -->
+               <div class="flex items-center gap-2 ml-auto">
+                 <span class="font-mono text-[10px] text-zinc-500 uppercase">Sort:</span>
+                 <div class="relative">
+                   <button
+                     (click)="showSortDropdown.set(!showSortDropdown())"
+                     class="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-700 font-mono text-[10px] uppercase tracking-wider text-zinc-300 hover:border-zinc-500 transition-colors"
+                   >
+                     <span>{{ getSortLabel(sortOption()) }}</span>
+                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                     </svg>
+                   </button>
+                   @if (showSortDropdown()) {
+                     <div class="absolute right-0 top-full mt-1 bg-zinc-900 border border-zinc-700 z-20 min-w-[140px]">
+                       @for (option of sortOptions; track option.value) {
+                         <button
+                           (click)="sortOption.set(option.value); showSortDropdown.set(false)"
+                           class="w-full px-3 py-2 text-left font-mono text-[10px] uppercase tracking-wider transition-colors"
+                           [class.bg-lime-400]="sortOption() === option.value"
+                           [class.text-black]="sortOption() === option.value"
+                           [class.text-zinc-300]="sortOption() !== option.value"
+                           [class.hover:bg-zinc-800]="sortOption() !== option.value"
+                         >
+                           {{ option.label }}
+                         </button>
+                       }
+                     </div>
+                   }
+                 </div>
+               </div>
+
+               <!-- Results count -->
+               <span class="font-mono text-[10px] text-zinc-600 hidden sm:block">
+                 {{ filteredBadges().length }} {{ filteredBadges().length === 1 ? 'badge' : 'badges' }}
+               </span>
+             </div>
+           }
+
            <!-- Grid -->
            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-zinc-800 border-t border-b border-zinc-800 sm:border">
 
@@ -93,7 +159,7 @@ type Tab = 'badges' | 'events';
                  </div>
                }
              } @else if (activeTab() === 'badges') {
-               @for (badge of poapService.myBadges(); track badge.id) {
+               @for (badge of filteredBadges(); track badge.id) {
                   <div class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors relative">
                     <!-- Image -->
                     <div class="aspect-square bg-black mb-6 relative overflow-hidden shadow-lg">
@@ -115,7 +181,7 @@ type Tab = 'badges' | 'events';
                   </div>
                } @empty {
                   <div class="col-span-full bg-zinc-950 p-20 text-center font-mono text-zinc-600">
-                     NO_ASSETS_FOUND
+                     {{ roleFilter() === 'all' ? 'NO_ASSETS_FOUND' : 'NO_' + roleFilter().toUpperCase() + '_BADGES' }}
                   </div>
                }
              } @else {
@@ -157,6 +223,11 @@ type Tab = 'badges' | 'events';
         }
       </div>
     </div>
+
+    <!-- Click outside to close dropdown -->
+    @if (showSortDropdown()) {
+      <div class="fixed inset-0 z-10" (click)="showSortDropdown.set(false)"></div>
+    }
 
     <!-- Event Detail Modal (Slide Over) -->
     @if (selectedEvent()) {
@@ -247,6 +318,47 @@ export class GalleryComponent implements OnInit {
   loading = signal(false);
   loadingAttendees = signal(false);
 
+  // Filter/Sort state
+  roleFilter = signal<RoleFilter>('all');
+  sortOption = signal<SortOption>('newest');
+  showSortDropdown = signal(false);
+
+  roleFilters: RoleFilter[] = ['all', 'Attendee', 'Speaker', 'Organizer'];
+  sortOptions = [
+    { value: 'newest' as SortOption, label: 'Newest First' },
+    { value: 'oldest' as SortOption, label: 'Oldest First' },
+    { value: 'name-asc' as SortOption, label: 'Name A-Z' },
+    { value: 'name-desc' as SortOption, label: 'Name Z-A' }
+  ];
+
+  // Computed filtered and sorted badges
+  filteredBadges = computed(() => {
+    let badges = [...this.poapService.myBadges()];
+
+    // Apply role filter
+    if (this.roleFilter() !== 'all') {
+      badges = badges.filter(b => b.role === this.roleFilter());
+    }
+
+    // Apply sort
+    switch (this.sortOption()) {
+      case 'newest':
+        badges.sort((a, b) => new Date(b.mintDate).getTime() - new Date(a.mintDate).getTime());
+        break;
+      case 'oldest':
+        badges.sort((a, b) => new Date(a.mintDate).getTime() - new Date(b.mintDate).getTime());
+        break;
+      case 'name-asc':
+        badges.sort((a, b) => a.eventName.localeCompare(b.eventName));
+        break;
+      case 'name-desc':
+        badges.sort((a, b) => b.eventName.localeCompare(a.eventName));
+        break;
+    }
+
+    return badges;
+  });
+
   selectedEvent = signal<PoPEvent | null>(null);
   attendees = signal<Attendee[]>([]);
   copied = signal(false);
@@ -269,6 +381,10 @@ export class GalleryComponent implements OnInit {
   private simulateLoad() {
     this.loading.set(true);
     setTimeout(() => this.loading.set(false), 1200);
+  }
+
+  getSortLabel(option: SortOption): string {
+    return this.sortOptions.find(o => o.value === option)?.label || '';
   }
 
   openEventDetails(event: PoPEvent) {
