@@ -14,40 +14,72 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
   template: `
     <div class="min-h-[80vh] flex flex-col items-center justify-center py-10 px-4">
 
-      <!-- STEP INDICATOR -->
-      <div class="w-full max-w-md mb-8">
-        <div class="flex justify-between items-center mb-4">
-          @for (step of ['Confirm', 'Sign', 'Mint']; track step; let i = $index) {
-            <div class="flex flex-col items-center gap-2 flex-1" [class.opacity-50]="getStepIndex() > i">
-              <!-- Step Circle -->
-              <div
-                class="w-8 h-8 flex items-center justify-center font-mono text-xs font-bold border-2 transition-all"
-                [class.border-lime-400]="getStepIndex() >= i"
-                [class.bg-lime-400]="getStepIndex() > i"
-                [class.text-black]="getStepIndex() > i"
-                [class.border-zinc-600]="getStepIndex() < i"
-                [class.text-zinc-400]="getStepIndex() < i"
-                [class.bg-zinc-900]="getStepIndex() < i"
-                [class.text-lime-400]="getStepIndex() === i"
-                [class.bg-zinc-950]="getStepIndex() === i"
-              >
-                {{ i + 1 }}
-              </div>
-              <!-- Step Label -->
-              <span class="text-xs font-mono uppercase tracking-widest"
-                [class.text-lime-400]="getStepIndex() >= i"
-                [class.text-zinc-500]="getStepIndex() < i">
-                {{ step }}
-              </span>
-              <!-- Connector -->
-              @if (i < 2) {
-                <div class="absolute w-12 h-0.5 mt-8 ml-12 -translate-y-16"
-                  [class.bg-lime-400]="getStepIndex() > i"
-                  [class.bg-zinc-700]="getStepIndex() <= i">
+      <!-- STEP INDICATOR - Web3 Style -->
+      <div class="w-full max-w-lg mb-12 relative">
+        <!-- Glass Container -->
+        <div class="relative bg-zinc-900/50 backdrop-blur border border-zinc-800 p-6 overflow-hidden">
+          <!-- Scan line effect -->
+          <div class="scan-line"></div>
+
+          <!-- Progress Track -->
+          <div class="relative flex items-center justify-between">
+            <!-- Background Track -->
+            <div class="absolute left-0 right-0 h-[2px] bg-zinc-800 top-1/2 -translate-y-1/2 mx-8"></div>
+            <!-- Filled Track -->
+            <div class="absolute left-0 h-[2px] bg-gradient-to-r from-lime-400 to-lime-300 top-1/2 -translate-y-1/2 mx-8 transition-all duration-500 glow-line"
+              [style.width]="(getStepIndex() * 44) + '%'"></div>
+
+            <!-- Step Nodes -->
+            @for (step of steps; track step.id; let i = $index) {
+              <div class="relative z-10 flex flex-col items-center">
+                <!-- Hex Node -->
+                <div class="relative">
+                  <!-- Outer glow ring for active -->
+                  @if (getStepIndex() === i) {
+                    <div class="absolute inset-0 -m-2 rotate-45 border-2 border-lime-400/50 animate-pulse"></div>
+                    <div class="absolute inset-0 -m-3 rotate-45 border border-lime-400/20 animate-ping"></div>
+                  }
+
+                  <!-- Main Node -->
+                  <div class="w-12 h-12 rotate-45 flex items-center justify-center transition-all duration-300"
+                    [class.bg-lime-400]="getStepIndex() > i"
+                    [class.bg-zinc-950]="getStepIndex() <= i"
+                    [class.border-2]="true"
+                    [class.border-lime-400]="getStepIndex() >= i"
+                    [class.border-zinc-700]="getStepIndex() < i"
+                    [class.shadow-[0_0_20px_rgba(163,230,53,0.5)]]="getStepIndex() === i">
+
+                    <div class="-rotate-45 font-mono font-bold text-sm"
+                      [class.text-black]="getStepIndex() > i"
+                      [class.text-lime-400]="getStepIndex() === i"
+                      [class.text-zinc-600]="getStepIndex() < i">
+                      @if (getStepIndex() > i) {
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                      } @else {
+                        {{ step.icon }}
+                      }
+                    </div>
+                  </div>
                 </div>
-              }
-            </div>
-          }
+
+                <!-- Label -->
+                <div class="mt-6 text-center">
+                  <span class="font-mono text-[10px] uppercase tracking-[0.2em] block"
+                    [class.text-lime-400]="getStepIndex() >= i"
+                    [class.text-zinc-500]="getStepIndex() < i">
+                    {{ step.label }}
+                  </span>
+                  @if (getStepIndex() === i) {
+                    <span class="font-mono text-[10px] text-lime-400/60 block mt-1 animate-pulse">
+                      {{ step.status }}<span class="blink">_</span>
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
         </div>
       </div>
 
@@ -183,6 +215,31 @@ type Step = 'confirm' | 'signing' | 'minting' | 'success';
     .animate-fade-in-up {
       animation: fade-in-up 0.6s ease-out forwards;
     }
+    .scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(163, 230, 53, 0.3), transparent);
+      animation: scan 3s linear infinite;
+    }
+    @keyframes scan {
+      0% { top: 0; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+    .glow-line {
+      box-shadow: 0 0 10px rgba(163, 230, 53, 0.5), 0 0 20px rgba(163, 230, 53, 0.3);
+    }
+    .blink {
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
   `]
 })
 export class MintingComponent implements OnInit {
@@ -194,6 +251,12 @@ export class MintingComponent implements OnInit {
   currentStep = signal<Step>('confirm');
   earnedBadge = signal<Badge | null>(null);
   showWalletModal = signal(false);
+
+  steps = [
+    { id: 'confirm', label: 'Confirm', icon: '◈', status: 'READY' },
+    { id: 'sign', label: 'Sign', icon: '⬡', status: 'SIGNING' },
+    { id: 'mint', label: 'Mint', icon: '◇', status: 'MINTING' }
+  ];
 
   ngOnInit() {
     const state = history.state;
