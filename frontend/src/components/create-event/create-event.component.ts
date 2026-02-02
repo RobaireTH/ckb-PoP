@@ -14,7 +14,7 @@ type CreateStep = 'form' | 'creating' | 'success';
   imports: [CommonModule, ReactiveFormsModule, RouterLink, WalletModalComponent],
   template: `
     <div class="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      
+
       @if (!walletService.isConnected()) {
         <!-- Auth Wall -->
         <div class="flex flex-col items-center justify-center py-12 sm:py-20 text-center animate-fade-in-up">
@@ -30,7 +30,7 @@ type CreateStep = 'form' | 'creating' | 'success';
            </button>
         </div>
       } @else {
-        
+
         <div class="max-w-xl mx-auto">
           @if (currentStep() === 'form') {
             <div class="bg-zinc-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/10 p-5 sm:p-8 animate-fade-in-up">
@@ -41,12 +41,12 @@ type CreateStep = 'form' | 'creating' | 'success';
 
                <form [formGroup]="form" (ngSubmit)="create()">
                   <div class="space-y-5 sm:space-y-6">
-                    
+
                     <!-- Image Upload -->
                     <div>
                       <label class="block text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2">Banner Asset</label>
                       <div class="group relative flex justify-center rounded-xl border border-dashed border-zinc-700 px-6 py-8 sm:py-10 hover:bg-white/5 hover:border-lime-500/50 transition-all overflow-hidden bg-black/20">
-                        
+
                         @if (uploadedImage()) {
                            <img [src]="uploadedImage()" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity">
                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -70,27 +70,81 @@ type CreateStep = 'form' | 'creating' | 'success';
                       </div>
                     </div>
 
+                    <!-- Event Name -->
                     <div>
                       <label class="block text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2">Event Name</label>
-                      <input formControlName="name" type="text" class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-600 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-6 transition-shadow" placeholder="e.g. CKB Summit 2024">
+                      <input
+                        formControlName="name"
+                        type="text"
+                        class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset transition-shadow text-base sm:text-sm leading-6"
+                        [class.ring-zinc-700]="!form.controls.name.touched || form.controls.name.valid"
+                        [class.ring-red-500]="form.controls.name.touched && form.controls.name.invalid"
+                        [class.focus:ring-lime-500]="form.controls.name.valid || !form.controls.name.touched"
+                        [class.focus:ring-red-500]="form.controls.name.touched && form.controls.name.invalid"
+                        placeholder="e.g. CKB Summit 2024">
+                      @if (form.controls.name.touched && form.controls.name.invalid) {
+                        <p class="mt-1.5 text-xs text-red-400 font-mono flex items-center gap-1">
+                          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                          @if (form.controls.name.errors?.['required']) {
+                            Event name is required
+                          } @else if (form.controls.name.errors?.['minlength']) {
+                            Name must be at least 3 characters
+                          } @else if (form.controls.name.errors?.['maxlength']) {
+                            Name must be less than 100 characters
+                          }
+                        </p>
+                      }
                     </div>
 
                     <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                       <!-- Date -->
                        <div>
                         <label class="block text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2">Date</label>
-                        <input formControlName="date" type="date" class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-6 dark:[color-scheme:dark] transition-shadow">
+                        <input
+                          formControlName="date"
+                          type="date"
+                          class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset transition-shadow text-base sm:text-sm leading-6 dark:[color-scheme:dark]"
+                          [class.ring-zinc-700]="!form.controls.date.touched || form.controls.date.valid"
+                          [class.ring-red-500]="form.controls.date.touched && form.controls.date.invalid"
+                          [class.focus:ring-lime-500]="form.controls.date.valid || !form.controls.date.touched"
+                          [class.focus:ring-red-500]="form.controls.date.touched && form.controls.date.invalid">
+                        @if (form.controls.date.touched && form.controls.date.invalid) {
+                          <p class="mt-1.5 text-xs text-red-400 font-mono flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            Event date is required
+                          </p>
+                        }
                        </div>
+                       <!-- Location -->
                        <div>
                         <label class="block text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2">Location</label>
-                        <input formControlName="location" type="text" class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-6 transition-shadow" placeholder="City or URL">
+                        <input
+                          formControlName="location"
+                          type="text"
+                          class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset transition-shadow text-base sm:text-sm leading-6"
+                          [class.ring-zinc-700]="!form.controls.location.touched || form.controls.location.valid"
+                          [class.ring-red-500]="form.controls.location.touched && form.controls.location.invalid"
+                          [class.focus:ring-lime-500]="form.controls.location.valid || !form.controls.location.touched"
+                          [class.focus:ring-red-500]="form.controls.location.touched && form.controls.location.invalid"
+                          placeholder="City or URL">
+                        @if (form.controls.location.touched && form.controls.location.invalid) {
+                          <p class="mt-1.5 text-xs text-red-400 font-mono flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                            Location is required
+                          </p>
+                        }
                        </div>
                     </div>
 
                     <div>
                       <label class="block text-xs font-mono uppercase tracking-wider text-zinc-500 mb-2">Description <span class="text-zinc-700 normal-case ml-1">(Optional)</span></label>
-                      <textarea formControlName="description" rows="3" class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-600 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-relaxed transition-shadow"></textarea>
+                      <textarea
+                        formControlName="description"
+                        rows="3"
+                        class="block w-full rounded-lg border-0 bg-black/50 py-3 sm:py-2.5 px-3 text-white shadow-sm ring-1 ring-inset ring-zinc-700 placeholder:text-zinc-600 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-relaxed transition-shadow"
+                        placeholder="Brief description of your event..."></textarea>
                     </div>
-                  
+
                     <!-- Deposit Info -->
                     <div class="rounded-xl bg-lime-400/5 border border-lime-400/10 p-4 flex items-start gap-3 mt-8">
                        <svg class="h-5 w-5 text-lime-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -136,13 +190,13 @@ type CreateStep = 'form' | 'creating' | 'success';
                    <h2 class="text-2xl font-bold text-white">Deployment Successful</h2>
                    <p class="text-lime-300/70 mt-1 font-mono text-sm">HASH: {{ createdEvent()?.name }}</p>
                 </div>
-                
+
                 <div class="p-6 sm:p-8 text-center">
                    <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Protocol ID</p>
                    <div class="bg-black/50 border border-white/10 rounded-xl py-4 px-8 inline-block mb-8 shadow-inner max-w-full">
                       <span class="text-3xl sm:text-4xl font-mono font-bold text-lime-400 tracking-wider drop-shadow-[0_0_8px_rgba(132,204,22,0.5)] break-all">{{ createdEvent()?.id }}</span>
                    </div>
-                   
+
                    <p class="text-sm text-zinc-400 mb-8 max-w-sm mx-auto">
                      Distribute this ID to attendees. It serves as the key for minting their proof of presence.
                    </p>
@@ -189,17 +243,17 @@ export class CreateEventComponent {
   walletService = inject(WalletService);
   poapService = inject(PoapService);
   fb: FormBuilder = inject(FormBuilder);
-  
+
   showModal = signal(false);
   currentStep = signal<CreateStep>('form');
   createdEvent = signal<PoPEvent | null>(null);
   uploadedImage = signal<string | null>(null);
 
   form = this.fb.group({
-    name: ['', [Validators.required, Validators.minLength(3)]],
+    name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
     date: ['', [Validators.required]],
-    location: ['', [Validators.required]],
-    description: ['']
+    location: ['', [Validators.required, Validators.maxLength(200)]],
+    description: ['', [Validators.maxLength(500)]]
   });
 
   onFileSelected(event: Event) {
@@ -215,12 +269,15 @@ export class CreateEventComponent {
   }
 
   create() {
+    // Mark all fields as touched to show validation errors
+    this.form.markAllAsTouched();
+
     if (this.form.invalid) return;
 
     this.currentStep.set('creating');
 
     const formVal = this.form.value;
-    
+
     this.poapService.createEvent({
       name: formVal.name!,
       date: formVal.date!,
@@ -234,7 +291,7 @@ export class CreateEventComponent {
     })
     .catch(err => {
        console.error(err);
-       this.currentStep.set('form'); 
+       this.currentStep.set('form');
     });
   }
 

@@ -125,19 +125,44 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
             </div>
           </div>
 
-          <div class="flex flex-col sm:flex-row gap-3">
-             <input
-               [formControl]="manualCode"
-               type="text"
-               placeholder="Enter Event ID..."
-               class="block w-full rounded-xl border-0 bg-zinc-900/50 py-3.5 sm:py-3 px-4 text-white shadow-sm ring-1 ring-inset ring-white/10 placeholder:text-zinc-600 focus:ring-2 focus:ring-inset focus:ring-lime-500 text-base sm:text-sm leading-6 font-mono transition-shadow"
-             >
-             <button
-               (click)="submitManual()"
-               [disabled]="manualCode.invalid || isValidating()"
-               class="w-full sm:w-auto rounded-xl bg-lime-400 px-8 py-3.5 sm:py-3 text-sm font-bold text-black shadow-lg hover:bg-lime-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500 disabled:opacity-50 disabled:grayscale transition-all active:scale-95">
-               {{ isValidating() ? '...' : 'GO' }}
-             </button>
+          <div class="flex flex-col gap-2">
+            <div class="flex flex-col sm:flex-row gap-3">
+               <input
+                 [formControl]="manualCode"
+                 type="text"
+                 placeholder="Enter Event ID..."
+                 maxlength="12"
+                 class="block w-full rounded-xl border-0 bg-zinc-900/50 py-3.5 sm:py-3 px-4 text-white shadow-sm ring-1 ring-inset placeholder:text-zinc-600 focus:ring-2 focus:ring-inset text-base sm:text-sm leading-6 font-mono transition-shadow uppercase"
+                 [class.ring-red-500]="manualCode.invalid && manualCode.touched"
+                 [class.ring-white/10]="manualCode.valid || !manualCode.touched"
+                 [class.focus:ring-red-500]="manualCode.invalid && manualCode.touched"
+                 [class.focus:ring-lime-500]="manualCode.valid || !manualCode.touched"
+               >
+               <button
+                 (click)="submitManual()"
+                 [disabled]="manualCode.invalid || isValidating()"
+                 class="w-full sm:w-auto rounded-xl bg-lime-400 px-8 py-3.5 sm:py-3 text-sm font-bold text-black shadow-lg hover:bg-lime-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500 disabled:opacity-50 disabled:grayscale transition-all active:scale-95 min-h-[44px]">
+                 {{ isValidating() ? '...' : 'GO' }}
+               </button>
+            </div>
+            @if (manualCode.invalid && manualCode.touched) {
+              <div class="flex items-center gap-2 text-red-400 text-xs font-mono">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>
+                  @if (manualCode.errors?.['required']) {
+                    Event ID is required
+                  } @else if (manualCode.errors?.['minlength']) {
+                    Event ID must be at least 4 characters
+                  } @else if (manualCode.errors?.['maxlength']) {
+                    Event ID must be at most 12 characters
+                  } @else if (manualCode.errors?.['pattern']) {
+                    Event ID must be alphanumeric only
+                  }
+                </span>
+              </div>
+            }
           </div>
 
         </div>
@@ -270,7 +295,12 @@ export class CheckInComponent {
   attendeeCount = signal(0);
   loadingAttendees = signal(false);
 
-  manualCode = new FormControl('', [Validators.required, Validators.minLength(3)]);
+  manualCode = new FormControl('', [
+    Validators.required,
+    Validators.minLength(4),
+    Validators.maxLength(12),
+    Validators.pattern(/^[a-zA-Z0-9]+$/)
+  ]);
 
   startScanning() {
     this.isScanning.set(true);
