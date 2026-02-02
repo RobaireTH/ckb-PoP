@@ -12,7 +12,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
   imports: [CommonModule, ReactiveFormsModule, WalletModalComponent],
   template: `
     <div class="min-h-[80vh] flex flex-col items-center justify-start py-8 pt-24 px-4 sm:px-6 lg:px-8">
-      
+
       @if (!walletService.isConnected()) {
         <div class="w-full max-w-md text-center mt-8 sm:mt-12 animate-fade-in-up">
            <div class="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-zinc-900 border border-white/10 mb-6 shadow-2xl">
@@ -53,17 +53,17 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
           <!-- Scanner View -->
           <div class="relative overflow-hidden rounded-3xl bg-black aspect-square shadow-2xl border border-white/10 group">
-            
+
             @if (isScanning()) {
               <div class="absolute inset-0 flex items-center justify-center">
                  <!-- Mock Camera Feed Background -->
                  <div class="absolute inset-0 bg-zinc-900 opacity-50 animate-pulse bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1000&auto=format&fit=crop')] bg-cover grayscale opacity-20"></div>
-                 
+
                  <div class="relative z-10 flex gap-2 items-center bg-black/60 backdrop-blur border border-white/10 px-3 py-1 rounded-full">
                     <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                     <span class="text-xs font-mono text-zinc-300">REC • LIVE</span>
                  </div>
-                 
+
                  <!-- Scan Line Animation -->
                  <div class="absolute inset-x-0 h-0.5 bg-lime-400 shadow-[0_0_20px_#a3e635] scan-line z-20"></div>
 
@@ -122,6 +122,92 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
       }
     </div>
 
+    <!-- Event Details Modal -->
+    @if (pendingEvent()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" (click)="cancelCheckIn()"></div>
+
+        <div class="relative w-full max-w-md bg-zinc-950 border border-zinc-800 shadow-2xl animate-fade-in-up overflow-hidden">
+          <!-- Event Image Header -->
+          <div class="relative h-40 bg-zinc-900 overflow-hidden">
+            <img [src]="pendingEvent()?.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-50">
+            <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent"></div>
+            <div class="absolute top-4 right-4">
+              <span class="font-mono text-[10px] bg-lime-400 text-black px-2 py-1 uppercase tracking-wider">Event Found</span>
+            </div>
+          </div>
+
+          <!-- Event Details -->
+          <div class="p-6 -mt-8 relative z-10">
+            <h2 class="font-display text-2xl font-bold text-white mb-2">{{ pendingEvent()?.name }}</h2>
+
+            <div class="space-y-3 mb-6">
+              <!-- Location -->
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <span class="font-mono text-sm text-zinc-300">{{ pendingEvent()?.location }}</span>
+              </div>
+
+              <!-- Date -->
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <span class="font-mono text-sm text-zinc-300">{{ pendingEvent()?.date }}</span>
+              </div>
+
+              <!-- Issuer -->
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <span class="font-mono text-sm text-zinc-300 truncate">{{ pendingEvent()?.issuer }}</span>
+              </div>
+
+              <!-- Attendee Count -->
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                @if (loadingAttendees()) {
+                  <span class="font-mono text-sm text-zinc-500 animate-pulse">Loading...</span>
+                } @else {
+                  <span class="font-mono text-sm text-zinc-300">{{ attendeeCount() }} {{ attendeeCount() === 1 ? 'attendee' : 'attendees' }} checked in</span>
+                }
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+              <button
+                (click)="cancelCheckIn()"
+                class="flex-1 py-3 border border-zinc-700 text-zinc-300 font-bold uppercase tracking-wider text-sm hover:bg-zinc-900 hover:border-zinc-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                (click)="confirmCheckIn()"
+                class="flex-1 py-3 bg-lime-400 text-black font-bold uppercase tracking-wider text-sm hover:bg-lime-300 transition-colors"
+              >
+                Check In
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
     @if (showModal()) {
       <app-wallet-modal (close)="showModal.set(false)"></app-wallet-modal>
     }
@@ -145,7 +231,12 @@ export class CheckInComponent {
   isValidating = signal(false);
   errorMsg = signal<string | null>(null);
   showModal = signal(false);
-  
+
+  // Event details modal state
+  pendingEvent = signal<PoPEvent | null>(null);
+  attendeeCount = signal(0);
+  loadingAttendees = signal(false);
+
   manualCode = new FormControl('', [Validators.required, Validators.minLength(3)]);
 
   startScanning() {
@@ -165,15 +256,41 @@ export class CheckInComponent {
   async validateCode(code: string) {
     this.isValidating.set(true);
     this.errorMsg.set(null);
-    this.isScanning.set(false); // Stop scan on attempt
+    this.isScanning.set(false);
 
     try {
       const event = await this.poapService.getEventByCode(code);
-      this.router.navigate(['/minting'], { state: { event } });
+      // Show event details modal instead of navigating directly
+      this.pendingEvent.set(event);
+      this.loadAttendeeCount(event.id);
     } catch (err: any) {
       this.errorMsg.set(err.message || 'Invalid protocol ID. Access denied.');
     } finally {
       this.isValidating.set(false);
     }
+  }
+
+  async loadAttendeeCount(eventId: string) {
+    this.loadingAttendees.set(true);
+    try {
+      const attendees = await this.poapService.getAttendees(eventId);
+      this.attendeeCount.set(attendees.length);
+    } catch {
+      this.attendeeCount.set(0);
+    } finally {
+      this.loadingAttendees.set(false);
+    }
+  }
+
+  confirmCheckIn() {
+    const event = this.pendingEvent();
+    if (event) {
+      this.pendingEvent.set(null);
+      this.router.navigate(['/minting'], { state: { event } });
+    }
+  }
+
+  cancelCheckIn() {
+    this.pendingEvent.set(null);
   }
 }
