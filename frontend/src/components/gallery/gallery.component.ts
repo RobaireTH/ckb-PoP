@@ -205,21 +205,24 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                }
              } @else if (activeTab() === 'badges') {
                @for (badge of filteredBadges(); track badge.id; let i = $index) {
-                  <div class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
+                  <div class="glass-card p-6 group hover:bg-white/[0.08] transition-all duration-300 relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
+                    <!-- Glass shine effect -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none"></div>
+
                     <!-- Image -->
-                    <div class="aspect-square bg-black mb-6 relative overflow-hidden shadow-lg">
+                    <div class="aspect-square bg-black mb-6 relative overflow-hidden shadow-lg rounded-sm">
                        <img [src]="badge.imageUrl" class="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-500 opacity-80 group-hover:opacity-100">
                        <div class="absolute bottom-0 left-0 bg-lime-400 text-black text-[10px] font-bold px-2 py-1 font-mono">
                           {{ badge.role | uppercase }}
                        </div>
                     </div>
 
-                    <h3 class="font-display text-lg text-white mb-1 leading-tight">{{ badge.eventName }}</h3>
-                    <p class="font-mono text-[10px] text-zinc-500 mb-4 truncate">{{ badge.txHash }}</p>
+                    <h3 class="font-display text-lg text-white mb-1 leading-tight relative">{{ badge.eventName }}</h3>
+                    <p class="font-mono text-[10px] text-zinc-500 mb-4 truncate relative">{{ badge.txHash }}</p>
 
-                    <div class="border-t border-zinc-800 pt-4 flex justify-between items-center">
+                    <div class="border-t border-white/10 pt-4 flex justify-between items-center relative">
                        <span class="font-mono text-xs text-zinc-400">{{ badge.mintDate | date:'MM.dd.yy' }}</span>
-                       <button class="w-6 h-6 border border-zinc-700 flex items-center justify-center text-zinc-500 hover:text-white hover:border-white">
+                       <button class="w-6 h-6 border border-white/20 flex items-center justify-center text-zinc-500 hover:text-white hover:border-lime-400 hover:bg-lime-400/10 transition-all rounded-sm backdrop-blur">
                           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                        </button>
                     </div>
@@ -260,10 +263,12 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
              } @else {
                <!-- EVENTS TAB -->
                @for (event of poapService.myCreatedEvents(); track event.id; let i = $index) {
-                  <div (click)="openEventDetails(event)" class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors cursor-pointer relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
+                  <div (click)="openEventDetails(event)" class="glass-card p-6 group hover:bg-white/[0.08] transition-all duration-300 cursor-pointer relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
+                    <!-- Glass shine effect -->
+                    <div class="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none"></div>
 
                     <!-- Event Banner -->
-                    <div class="aspect-video w-full bg-zinc-900 mb-6 relative overflow-hidden border border-white/5 shadow-lg">
+                    <div class="aspect-video w-full bg-zinc-900 mb-6 relative overflow-hidden border border-white/10 shadow-lg rounded-sm">
                         <img [src]="event.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500">
                         <div class="absolute top-3 right-3 w-2 h-2 rounded-full bg-lime-500 animate-pulse shadow-[0_0_8px_#84cc16] z-10"></div>
 
@@ -406,6 +411,12 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    .glass-card {
+      background: rgba(9, 9, 11, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
     .safe-pb {
       padding-bottom: env(safe-area-inset-bottom, 24px);
     }
@@ -431,20 +442,9 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
         transform: translateY(0) scale(1);
       }
     }
-    @keyframes card-glow {
-      0%, 100% {
-        box-shadow: 0 0 0 rgba(163, 230, 53, 0);
-      }
-      50% {
-        box-shadow: 0 0 20px rgba(163, 230, 53, 0.1);
-      }
-    }
     .tab-item {
       animation: card-fade-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       opacity: 0;
-    }
-    .tab-item:hover {
-      animation: card-glow 2s ease-in-out infinite;
     }
   `]
 })
