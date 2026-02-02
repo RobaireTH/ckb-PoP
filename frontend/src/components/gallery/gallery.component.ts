@@ -16,7 +16,7 @@ type Tab = 'badges' | 'events';
       <div class="max-w-[1400px] mx-auto">
         
         @if (!walletService.isConnected()) {
-           <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center max-w-lg mx-auto mt-20 mx-4">
+           <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center max-w-lg mx-4 sm:mx-auto mt-20">
              <div class="w-16 h-16 bg-zinc-800 mx-auto mb-6 flex items-center justify-center">
                 <svg class="w-8 h-8 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
              </div>
