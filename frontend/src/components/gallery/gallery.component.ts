@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { PoapService, PoPEvent, Attendee } from '../../services/poap.service';
@@ -14,7 +14,7 @@ type Tab = 'badges' | 'events';
   template: `
     <div class="min-h-screen py-24 px-0 sm:px-6 lg:px-8">
       <div class="max-w-[1400px] mx-auto">
-        
+
         @if (!walletService.isConnected()) {
            <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center max-w-lg mx-4 sm:mx-auto mt-20">
              <div class="w-16 h-16 bg-zinc-800 mx-auto mb-6 flex items-center justify-center">
@@ -27,15 +27,15 @@ type Tab = 'badges' | 'events';
              </button>
            </div>
         } @else {
-           
+
            <!-- Controls Header -->
            <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-6 border-b border-zinc-800 pb-6 px-4 sm:px-0">
               <div>
                  <h1 class="font-display text-3xl sm:text-4xl text-white mb-2">My Assets</h1>
-                 
+
                  <!-- Copy Address Button -->
-                 <button 
-                   (click)="copyAddress()" 
+                 <button
+                   (click)="copyAddress()"
                    class="group flex items-center gap-2 font-mono text-xs text-zinc-500 hover:text-white transition-colors active:scale-95 origin-left"
                    title="Copy Address">
                     <span>{{ walletService.address() }}</span>
@@ -50,7 +50,7 @@ type Tab = 'badges' | 'events';
               </div>
 
               <div class="flex gap-4 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-                 <button 
+                 <button
                    (click)="activeTab.set('badges')"
                    [class.text-lime-400]="activeTab() === 'badges'"
                    [class.border-lime-400]="activeTab() === 'badges'"
@@ -58,7 +58,7 @@ type Tab = 'badges' | 'events';
                  >
                    // Badges
                  </button>
-                 <button 
+                 <button
                    (click)="activeTab.set('events')"
                    [class.text-lime-400]="activeTab() === 'events'"
                    [class.border-lime-400]="activeTab() === 'events'"
@@ -71,8 +71,28 @@ type Tab = 'badges' | 'events';
 
            <!-- Grid -->
            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-zinc-800 border-t border-b border-zinc-800 sm:border">
-             
-             @if (activeTab() === 'badges') {
+
+             @if (loading()) {
+               <!-- Skeleton Loaders -->
+               @for (i of [1,2,3,4]; track i) {
+                 <div class="bg-zinc-950 p-6 animate-pulse">
+                   @if (activeTab() === 'badges') {
+                     <div class="aspect-square bg-zinc-800 mb-6 skeleton-shimmer"></div>
+                     <div class="h-5 bg-zinc-800 mb-2 w-3/4 skeleton-shimmer"></div>
+                     <div class="h-3 bg-zinc-800 mb-4 w-1/2 skeleton-shimmer"></div>
+                     <div class="border-t border-zinc-800 pt-4 flex justify-between items-center">
+                       <div class="h-3 bg-zinc-800 w-16 skeleton-shimmer"></div>
+                       <div class="w-6 h-6 bg-zinc-800 skeleton-shimmer"></div>
+                     </div>
+                   } @else {
+                     <div class="aspect-video bg-zinc-800 mb-6 skeleton-shimmer"></div>
+                     <div class="h-6 bg-zinc-800 mb-2 w-2/3 skeleton-shimmer"></div>
+                     <div class="h-3 bg-zinc-800 mb-6 w-1/2 skeleton-shimmer"></div>
+                     <div class="h-10 bg-zinc-800 skeleton-shimmer"></div>
+                   }
+                 </div>
+               }
+             } @else if (activeTab() === 'badges') {
                @for (badge of poapService.myBadges(); track badge.id) {
                   <div class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors relative">
                     <!-- Image -->
@@ -82,10 +102,10 @@ type Tab = 'badges' | 'events';
                           {{ badge.role | uppercase }}
                        </div>
                     </div>
-                    
+
                     <h3 class="font-display text-lg text-white mb-1 leading-tight">{{ badge.eventName }}</h3>
                     <p class="font-mono text-[10px] text-zinc-500 mb-4 truncate">{{ badge.txHash }}</p>
-                    
+
                     <div class="border-t border-zinc-800 pt-4 flex justify-between items-center">
                        <span class="font-mono text-xs text-zinc-400">{{ badge.mintDate | date:'MM.dd.yy' }}</span>
                        <button class="w-6 h-6 border border-zinc-700 flex items-center justify-center text-zinc-500 hover:text-white hover:border-white">
@@ -102,25 +122,25 @@ type Tab = 'badges' | 'events';
                <!-- EVENTS TAB -->
                @for (event of poapService.myCreatedEvents(); track event.id) {
                   <div (click)="openEventDetails(event)" class="bg-zinc-950 p-6 group hover:bg-zinc-900 transition-colors cursor-pointer relative">
-                    
+
                     <!-- Event Banner -->
                     <div class="aspect-video w-full bg-zinc-900 mb-6 relative overflow-hidden border border-white/5 shadow-lg">
                         <img [src]="event.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500">
                         <div class="absolute top-3 right-3 w-2 h-2 rounded-full bg-lime-500 animate-pulse shadow-[0_0_8px_#84cc16] z-10"></div>
-                        
+
                         <!-- Overlay Title for Contrast if image is dark -->
                         <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <span class="font-mono text-[10px] text-lime-400">DEPLOYED_CONTRACT</span>
                         </div>
                     </div>
-                    
+
                     <h3 class="font-display text-xl text-white mb-1 group-hover:text-lime-400 transition-colors truncate">{{ event.name }}</h3>
                     <p class="font-mono text-xs text-zinc-500 mb-6 truncate">{{ event.location }}</p>
 
                     <div class="flex gap-2">
-                       <button 
+                       <button
                             [routerLink]="['/event', event.id, 'live']"
-                            (click)="$event.stopPropagation()" 
+                            (click)="$event.stopPropagation()"
                             class="flex-1 bg-zinc-800 hover:bg-white hover:text-black text-xs font-mono py-2.5 transition-colors border border-white/10 uppercase tracking-wide">
                             Launch Kiosk
                        </button>
@@ -142,9 +162,9 @@ type Tab = 'badges' | 'events';
     @if (selectedEvent()) {
       <div class="fixed inset-0 z-50 flex justify-end">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" (click)="selectedEvent.set(null)"></div>
-        
+
         <div class="relative w-full max-w-md bg-zinc-950 border-l border-zinc-800 shadow-2xl h-full flex flex-col transform transition-transform duration-300">
-           
+
            <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
               <h2 class="font-mono text-xs uppercase text-zinc-500">Event_Details // {{ selectedEvent()?.id }}</h2>
               <button (click)="selectedEvent.set(null)" class="text-white hover:text-lime-400 p-2">
@@ -161,13 +181,22 @@ type Tab = 'badges' | 'events';
               <div class="mb-8">
                  <div class="font-mono text-[10px] text-zinc-500 mb-2">ATTENDEE_LOG</div>
                  <div class="space-y-px bg-zinc-800 border border-zinc-800">
-                    @for (attendee of attendees(); track attendee.txHash) {
-                       <div class="bg-zinc-950 p-3 flex justify-between items-center">
-                          <span class="font-mono text-xs text-zinc-300">{{ attendee.address | slice:0:12 }}...</span>
-                          <span class="font-mono text-[10px] text-zinc-600">{{ attendee.mintDate | date:'HH:mm:ss' }}</span>
-                       </div>
-                    } @empty {
-                       <div class="bg-zinc-950 p-4 text-center font-mono text-xs text-zinc-600">Waiting for blocks...</div>
+                    @if (loadingAttendees()) {
+                      @for (i of [1,2,3]; track i) {
+                        <div class="bg-zinc-950 p-3 flex justify-between items-center animate-pulse">
+                          <div class="h-3 bg-zinc-800 w-24 skeleton-shimmer"></div>
+                          <div class="h-3 bg-zinc-800 w-16 skeleton-shimmer"></div>
+                        </div>
+                      }
+                    } @else {
+                      @for (attendee of attendees(); track attendee.txHash) {
+                         <div class="bg-zinc-950 p-3 flex justify-between items-center">
+                            <span class="font-mono text-xs text-zinc-300">{{ attendee.address | slice:0:12 }}...</span>
+                            <span class="font-mono text-[10px] text-zinc-600">{{ attendee.mintDate | date:'HH:mm:ss' }}</span>
+                         </div>
+                      } @empty {
+                         <div class="bg-zinc-950 p-4 text-center font-mono text-xs text-zinc-600">Waiting for blocks...</div>
+                      }
                     }
                  </div>
               </div>
@@ -198,24 +227,57 @@ type Tab = 'badges' | 'events';
     .safe-pb {
       padding-bottom: env(safe-area-inset-bottom, 24px);
     }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #27272a 0%, #3f3f46 50%, #27272a 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
   `]
 })
-export class GalleryComponent {
+export class GalleryComponent implements OnInit {
   poapService = inject(PoapService);
   walletService = inject(WalletService);
-  
+
   showModal = signal(false);
   activeTab = signal<Tab>('badges');
-  
+  loading = signal(false);
+  loadingAttendees = signal(false);
+
   selectedEvent = signal<PoPEvent | null>(null);
   attendees = signal<Attendee[]>([]);
   copied = signal(false);
 
+  constructor() {
+    // Trigger loading state when wallet connects
+    effect(() => {
+      if (this.walletService.isConnected()) {
+        this.simulateLoad();
+      }
+    });
+  }
+
+  ngOnInit() {
+    if (this.walletService.isConnected()) {
+      this.simulateLoad();
+    }
+  }
+
+  private simulateLoad() {
+    this.loading.set(true);
+    setTimeout(() => this.loading.set(false), 1200);
+  }
+
   openEventDetails(event: PoPEvent) {
     this.selectedEvent.set(event);
     this.attendees.set([]);
+    this.loadingAttendees.set(true);
     this.poapService.getAttendees(event.id).then(data => {
       this.attendees.set(data);
+      this.loadingAttendees.set(false);
     });
   }
 
