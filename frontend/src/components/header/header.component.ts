@@ -9,13 +9,21 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive, WalletModalComponent],
   template: `
-    <header class="fixed top-0 z-40 w-full bg-black/80 backdrop-blur-md border-b border-white/5">
+    <!-- Skip Link for keyboard users -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-lime-400 focus:text-black focus:font-bold focus:rounded"
+    >
+      Skip to main content
+    </a>
+
+    <header class="fixed top-0 z-40 w-full bg-black/80 backdrop-blur-md border-b border-white/5" role="banner">
       <div class="max-w-[1400px] mx-auto px-3 sm:px-6">
         <div class="h-16 flex items-center justify-between gap-2">
 
           <!-- Brand - takes priority, won't shrink -->
-          <a routerLink="/" class="flex items-center gap-2 sm:gap-3 group shrink-0">
-            <img src="assets/ckb-pop.png" alt="PoP Logo" class="h-9 w-9 sm:h-10 sm:w-10 object-contain">
+          <a routerLink="/" class="flex items-center gap-2 sm:gap-3 group shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded-lg" aria-label="PoP Network - Go to homepage">
+            <img src="assets/ckb-pop.png" alt="" class="h-9 w-9 sm:h-10 sm:w-10 object-contain" aria-hidden="true">
             <div class="flex flex-col">
               <span class="font-display font-bold text-white leading-none tracking-tight text-sm sm:text-base">PoP Network</span>
               <span class="font-mono text-[10px] sm:text-xs text-zinc-500 uppercase tracking-widest">Protocol V1.0</span>
@@ -23,45 +31,56 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           </a>
 
           <!-- Desktop Navigation -->
-          <nav class="hidden md:flex items-center gap-1">
+          <nav class="hidden md:flex items-center gap-1" aria-label="Main navigation">
              <a routerLink="/check-in"
                 routerLinkActive="active-nav-item"
                 #rlaCheckIn="routerLinkActive"
-                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group">
+                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group"
+                [attr.aria-current]="rlaCheckIn.isActive ? 'page' : null">
                <span class="relative z-10">Check In</span>
-               <span class="nav-bg"></span>
-               <span class="nav-indicator" [class.active]="rlaCheckIn.isActive"></span>
+               <span class="nav-bg" aria-hidden="true"></span>
+               <span class="nav-indicator" [class.active]="rlaCheckIn.isActive" aria-hidden="true"></span>
              </a>
              <a routerLink="/create"
                 routerLinkActive="active-nav-item"
                 #rlaCreate="routerLinkActive"
-                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group">
+                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group"
+                [attr.aria-current]="rlaCreate.isActive ? 'page' : null">
                <span class="relative z-10">Create Event</span>
-               <span class="nav-bg"></span>
-               <span class="nav-indicator" [class.active]="rlaCreate.isActive"></span>
+               <span class="nav-bg" aria-hidden="true"></span>
+               <span class="nav-indicator" [class.active]="rlaCreate.isActive" aria-hidden="true"></span>
              </a>
              <a routerLink="/gallery"
                 routerLinkActive="active-nav-item"
                 #rlaGallery="routerLinkActive"
-                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group">
+                class="nav-item px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-all duration-300 relative group"
+                [attr.aria-current]="rlaGallery.isActive ? 'page' : null">
                <span class="relative z-10">Dashboard</span>
-               <span class="nav-bg"></span>
-               <span class="nav-indicator" [class.active]="rlaGallery.isActive"></span>
+               <span class="nav-bg" aria-hidden="true"></span>
+               <span class="nav-indicator" [class.active]="rlaGallery.isActive" aria-hidden="true"></span>
              </a>
           </nav>
 
           <!-- Wallet Actions - adapts to available space -->
           <div class="min-w-0">
             @if (walletService.isConnected()) {
-              <button (click)="openWalletModal()" class="flex items-center gap-2 sm:gap-3 px-3 sm:pl-4 sm:pr-5 py-2.5 bg-zinc-900 border border-white/10 hover:border-lime-400/50 transition-all group min-h-[44px]">
-                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] shrink-0"></div>
-                <span class="font-mono text-xs text-zinc-300 group-hover:text-white truncate max-w-[60px] min-[400px]:max-w-[80px] sm:max-w-none">{{ walletService.shortAddress() }}</span>
+              <button
+                (click)="openWalletModal()"
+                class="flex items-center gap-2 sm:gap-3 px-3 sm:pl-4 sm:pr-5 py-2.5 bg-zinc-900 border border-white/10 hover:border-lime-400/50 transition-all group min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded"
+                [attr.aria-label]="'Wallet connected: ' + walletService.shortAddress() + '. Click to manage wallet'"
+              >
+                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] shrink-0" aria-hidden="true"></div>
+                <span class="font-mono text-xs text-zinc-300 group-hover:text-white truncate max-w-[60px] min-[400px]:max-w-[80px] sm:max-w-none" aria-hidden="true">{{ walletService.shortAddress() }}</span>
               </button>
             } @else {
-              <button (click)="openWalletModal()" class="relative px-4 sm:px-6 py-2.5 bg-zinc-100 hover:bg-lime-400 hover:scale-105 transition-all duration-300 group min-h-[44px]">
+              <button
+                (click)="openWalletModal()"
+                class="relative px-4 sm:px-6 py-2.5 bg-zinc-100 hover:bg-lime-400 hover:scale-105 transition-all duration-300 group min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-lime-400 focus-visible:ring-offset-2 focus-visible:ring-offset-black rounded"
+                aria-label="Connect wallet"
+              >
                 <span class="relative z-10 text-xs font-bold uppercase tracking-wider text-black">Connect</span>
-                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true"></div>
+                <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden="true"></div>
               </button>
             }
           </div>
@@ -75,6 +94,27 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
     }
   `,
   styles: [`
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    .sr-only:focus {
+      position: absolute;
+      width: auto;
+      height: auto;
+      padding: 0.5rem 1rem;
+      margin: 0;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+    }
     /* Nav item styles */
     .nav-item {
       position: relative;
@@ -109,6 +149,14 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
     }
     .nav-item:hover .nav-indicator:not(.active) {
       width: 30%;
+    }
+    .nav-item:focus {
+      outline: none;
+    }
+    .nav-item:focus-visible {
+      outline: 2px solid #a3e635;
+      outline-offset: 2px;
+      border-radius: 4px;
     }
     .active-nav-item {
       color: #a3e635 !important;

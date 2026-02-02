@@ -121,7 +121,7 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
               <div class="w-full border-t border-zinc-800"></div>
             </div>
             <div class="relative flex justify-center">
-              <span class="bg-zinc-950 px-3 text-xs uppercase tracking-widest text-zinc-500 font-mono">Manual Override</span>
+              <span class="bg-zinc-950 px-3 text-xs uppercase tracking-widest text-zinc-500 font-mono" id="manual-code-label">Manual Override</span>
             </div>
           </div>
 
@@ -132,6 +132,9 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
                  type="text"
                  placeholder="Enter Event ID..."
                  maxlength="12"
+                 aria-label="Event ID"
+                 aria-describedby="manual-code-error"
+                 [attr.aria-invalid]="manualCode.invalid && manualCode.touched"
                  class="block w-full rounded-xl border-0 bg-zinc-900/50 py-3.5 sm:py-3 px-4 text-white shadow-sm ring-1 ring-inset placeholder:text-zinc-600 focus:ring-2 focus:ring-inset text-base sm:text-sm leading-6 font-mono transition-shadow uppercase"
                  [class.ring-red-500]="manualCode.invalid && manualCode.touched"
                  [class.ring-white/10]="manualCode.valid || !manualCode.touched"
@@ -141,13 +144,14 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
                <button
                  (click)="submitManual()"
                  [disabled]="manualCode.invalid || isValidating()"
+                 aria-label="Submit event ID"
                  class="w-full sm:w-auto rounded-xl bg-lime-400 px-8 py-3.5 sm:py-3 text-sm font-bold text-black shadow-lg hover:bg-lime-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500 disabled:opacity-50 disabled:grayscale transition-all active:scale-95 min-h-[44px]">
                  {{ isValidating() ? '...' : 'GO' }}
                </button>
             </div>
             @if (manualCode.invalid && manualCode.touched) {
-              <div class="flex items-center gap-2 text-red-400 text-xs font-mono">
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div id="manual-code-error" class="flex items-center gap-2 text-red-400 text-xs font-mono" role="alert" aria-live="polite">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <span>
@@ -171,13 +175,13 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
     <!-- Event Details Modal -->
     @if (pendingEvent()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" (click)="cancelCheckIn()"></div>
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" (click)="cancelCheckIn()" aria-hidden="true"></div>
 
         <div class="relative w-full max-w-md bg-zinc-950 border border-zinc-800 shadow-2xl animate-fade-in-up overflow-hidden">
           <!-- Event Image Header -->
-          <div class="relative h-40 bg-zinc-900 overflow-hidden">
-            <img [src]="pendingEvent()?.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-50">
+          <div class="relative h-40 bg-zinc-900 overflow-hidden" aria-hidden="true">
+            <img [src]="pendingEvent()?.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-50" alt="">
             <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent"></div>
             <div class="absolute top-4 right-4">
               <span class="font-mono text-[10px] bg-lime-400 text-black px-2 py-1 uppercase tracking-wider">Event Found</span>
@@ -186,18 +190,18 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
           <!-- Event Details -->
           <div class="p-6 -mt-8 relative z-10">
-            <h2 class="font-display text-2xl font-bold text-white mb-2">{{ pendingEvent()?.name }}</h2>
+            <h2 id="event-modal-title" class="font-display text-2xl font-bold text-white mb-2">{{ pendingEvent()?.name }}</h2>
 
             <div class="space-y-3 mb-6">
               <!-- Location -->
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0" aria-hidden="true">
                   <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <span class="font-mono text-sm text-zinc-300">{{ pendingEvent()?.location }}</span>
+                <span class="font-mono text-sm text-zinc-300"><span class="sr-only">Location: </span>{{ pendingEvent()?.location }}</span>
               </div>
 
               <!-- Date -->
