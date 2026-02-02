@@ -1,5 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { ccc } from '@ckb-ccc/ccc';
+import { ToastService } from './toast.service';
 
 export type WalletType = string | null;
 
@@ -7,6 +8,8 @@ export type WalletType = string | null;
   providedIn: 'root'
 })
 export class WalletService {
+  private toast = inject(ToastService);
+
   // CKB Client - using testnet for development
   private client = new ccc.ClientPublicTestnet();
 
@@ -79,11 +82,14 @@ export class WalletService {
       this.address.set(addr);
       this.isConnecting.set(false);
 
+      this.toast.success(`Wallet connected: ${addr.slice(0, 8)}...${addr.slice(-4)}`);
+
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to connect wallet';
       this.error.set(message);
       this.isConnecting.set(false);
+      this.toast.error(`Connection failed: ${message}`);
       console.error('Wallet connection error:', err);
       return false;
     }
@@ -95,6 +101,7 @@ export class WalletService {
     this.connectedWallet.set(null);
     this.address.set(null);
     this.error.set(null);
+    this.toast.info('Wallet disconnected');
   }
 
   // Get wallet balance in CKB

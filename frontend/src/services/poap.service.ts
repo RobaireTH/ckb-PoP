@@ -1,6 +1,7 @@
 import { Injectable, signal, inject, computed } from '@angular/core';
 import { GoogleGenAI } from "@google/genai";
 import { WalletService } from './wallet.service';
+import { ToastService } from './toast.service';
 
 export interface PoPEvent {
   id: string;
@@ -34,6 +35,7 @@ export interface Attendee {
 })
 export class PoapService {
   private walletService = inject(WalletService);
+  private toast = inject(ToastService);
 
   private readonly badgesSignal = signal<Badge[]>([
     {
@@ -122,7 +124,7 @@ export class PoapService {
 
   async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     const newEvent: PoPEvent = {
         id: Math.random().toString(36).substring(2, 8).toUpperCase(),
         name: eventData.name,
@@ -134,6 +136,7 @@ export class PoapService {
     };
 
     this.eventsSignal.update(evts => [newEvent, ...evts]);
+    this.toast.success(`Event created: ${newEvent.name}`);
     return newEvent;
   }
 
@@ -178,6 +181,7 @@ export class PoapService {
     };
 
     this.badgesSignal.update(badges => [newBadge, ...badges]);
+    this.toast.success(`Badge minted for ${event.name}`);
     return newBadge;
   }
 }
