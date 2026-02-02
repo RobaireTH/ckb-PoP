@@ -10,15 +10,15 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
   imports: [CommonModule, RouterLink, RouterLinkActive, WalletModalComponent],
   template: `
     <header class="fixed top-0 z-40 w-full bg-black/80 backdrop-blur-md border-b border-white/5">
-      <div class="max-w-[1400px] mx-auto px-4 sm:px-6">
-        <div class="h-16 flex items-center justify-between">
+      <div class="max-w-[1400px] mx-auto px-3 sm:px-6">
+        <div class="h-16 flex items-center justify-between gap-2">
 
-          <!-- Brand -->
-          <a routerLink="/" class="flex items-center gap-3 group">
-            <img src="assets/ckb-pop.png" alt="PoP Logo" class="h-10 w-10 object-contain">
+          <!-- Brand - takes priority, won't shrink -->
+          <a routerLink="/" class="flex items-center gap-2 sm:gap-3 group shrink-0">
+            <img src="assets/ckb-pop.png" alt="PoP Logo" class="h-9 w-9 sm:h-10 sm:w-10 object-contain">
             <div class="flex flex-col">
-              <span class="font-display font-bold text-white leading-none tracking-tight">PoP Network</span>
-              <span class="font-mono text-xs text-zinc-500 uppercase tracking-widest">Protocol V1.0</span>
+              <span class="font-display font-bold text-white leading-none tracking-tight text-sm sm:text-base">PoP Network</span>
+              <span class="font-mono text-[10px] sm:text-xs text-zinc-500 uppercase tracking-widest">Protocol V1.0</span>
             </div>
           </a>
 
@@ -50,15 +50,15 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
              </a>
           </nav>
 
-          <!-- Wallet Actions -->
-          <div>
+          <!-- Wallet Actions - adapts to available space -->
+          <div class="min-w-0">
             @if (walletService.isConnected()) {
-              <button (click)="openWalletModal()" class="flex items-center gap-3 pl-4 pr-5 py-2.5 bg-zinc-900 border border-white/10 hover:border-lime-400/50 transition-all group min-h-[44px]">
-                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></div>
-                <span class="font-mono text-xs text-zinc-300 group-hover:text-white">{{ walletService.shortAddress() }}</span>
+              <button (click)="openWalletModal()" class="flex items-center gap-2 sm:gap-3 px-3 sm:pl-4 sm:pr-5 py-2.5 bg-zinc-900 border border-white/10 hover:border-lime-400/50 transition-all group min-h-[44px]">
+                <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] shrink-0"></div>
+                <span class="font-mono text-xs text-zinc-300 group-hover:text-white truncate max-w-[60px] min-[400px]:max-w-[80px] sm:max-w-none">{{ walletService.shortAddress() }}</span>
               </button>
             } @else {
-              <button (click)="openWalletModal()" class="relative px-6 py-2.5 bg-zinc-100 hover:bg-lime-400 hover:scale-105 transition-all duration-300 group min-h-[44px]">
+              <button (click)="openWalletModal()" class="relative px-4 sm:px-6 py-2.5 bg-zinc-100 hover:bg-lime-400 hover:scale-105 transition-all duration-300 group min-h-[44px]">
                 <span class="relative z-10 text-xs font-bold uppercase tracking-wider text-black">Connect</span>
                 <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black opacity-0 group-hover:opacity-100 transition-opacity"></div>
