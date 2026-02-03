@@ -1,4 +1,4 @@
-import { Component, inject, signal, effect } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -11,247 +11,190 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, WalletModalComponent],
   template: `
-    <div class="min-h-[80vh] flex flex-col items-center justify-start py-8 pt-24 px-4 sm:px-6 lg:px-8">
+    <div class="min-h-screen pt-14 pb-20 px-4">
+      <div class="max-w-md mx-auto pt-8">
 
-      @if (!walletService.isConnected()) {
-        <div class="w-full max-w-md text-center mt-8 sm:mt-12 animate-fade-in-up">
-           <div class="mx-auto flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-zinc-900 border border-white/10 mb-6 shadow-2xl">
-             <svg class="h-8 w-8 sm:h-10 sm:w-10 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-             </svg>
-           </div>
-           <h2 class="text-2xl font-bold tracking-tight text-white font-display">Login Required</h2>
-           <p class="mt-2 text-zinc-400 mb-8 text-base">Connect your wallet to establish identity.</p>
-           <button (click)="showModal.set(true)" class="w-full sm:w-auto rounded-full bg-lime-400 px-8 py-3.5 text-base font-bold text-black shadow-[0_0_20px_rgba(163,230,53,0.4)] hover:bg-lime-300 hover:scale-105 transition-all active:scale-95">
-             Connect Wallet
-           </button>
-        </div>
-      } @else {
-        <div class="w-full max-w-md space-y-8 animate-fade-in-up">
-          <div>
-            <h2 class="mt-4 sm:mt-6 text-center text-3xl font-bold tracking-tight text-white font-display">Event Check-In</h2>
-            <p class="mt-2 text-center text-sm text-zinc-400 leading-relaxed">
-              Align QR code within the frame or enter protocol ID manually.
-            </p>
+        @if (!walletService.isConnected()) {
+          <!-- Auth Required -->
+          <div class="border border-white/[0.04] bg-black p-6 text-center">
+            <div class="w-10 h-10 border border-zinc-800 mx-auto mb-4 flex items-center justify-center">
+              <svg class="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div class="font-display text-lg text-white mb-1">Wallet Required</div>
+            <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-4">Connect to establish identity</div>
+            <button (click)="showModal.set(true)" class="btn-action w-full justify-center">
+              <span>Connect Wallet</span>
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </button>
+          </div>
+        } @else {
+
+          <!-- Header -->
+          <div class="mb-6">
+            <div class="font-display text-lg text-white mb-1">Verify Attendance</div>
+            <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider">Scan QR or enter protocol ID</div>
           </div>
 
           @if (errorMsg()) {
-            <div class="rounded-xl bg-red-900/20 border border-red-500/20 p-4 animate-fade-in-up">
-              <div class="flex">
-                <div class="flex-shrink-0">
-                  <svg class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <div class="ml-3">
-                  <h3 class="text-sm font-medium text-red-400">Scan Failed</h3>
-                  <div class="text-sm text-red-300/80 mt-1">{{ errorMsg() }}</div>
+            <div class="border border-red-500/20 bg-red-900/10 p-3 mb-4">
+              <div class="flex items-start gap-2">
+                <svg class="w-3 h-3 text-red-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                </svg>
+                <div>
+                  <div class="font-mono text-[9px] text-red-400 uppercase tracking-wider">Verification Failed</div>
+                  <div class="text-xs text-red-300/70 mt-0.5">{{ errorMsg() }}</div>
                 </div>
               </div>
             </div>
           }
 
-          <!-- Scanner View -->
-          <div class="relative overflow-hidden rounded-3xl bg-black aspect-square shadow-2xl border border-white/10 group">
-
+          <!-- Scanner -->
+          <div class="border border-white/[0.04] bg-black aspect-square mb-4 relative overflow-hidden">
             @if (isScanning()) {
               <div class="absolute inset-0">
-                 <!-- Gradient Background -->
-                 <div class="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-900"></div>
+                <div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(163,230,53,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(163,230,53,0.5) 1px, transparent 1px); background-size: 16px 16px;"></div>
 
-                 <!-- Grid Pattern -->
-                 <div class="absolute inset-0 opacity-10" style="background-image: linear-gradient(rgba(163,230,53,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(163,230,53,0.3) 1px, transparent 1px); background-size: 20px 20px;"></div>
+                <!-- Frame -->
+                <div class="absolute inset-0 flex items-center justify-center">
+                  <div class="relative w-40 h-40">
+                    <div class="absolute top-0 left-0 w-4 h-4 border-l border-t border-lime-400"></div>
+                    <div class="absolute top-0 right-0 w-4 h-4 border-r border-t border-lime-400"></div>
+                    <div class="absolute bottom-0 left-0 w-4 h-4 border-l border-b border-lime-400"></div>
+                    <div class="absolute bottom-0 right-0 w-4 h-4 border-r border-b border-lime-400"></div>
+                    <div class="absolute inset-x-0 h-px bg-lime-400/80 scan-line"></div>
+                  </div>
+                </div>
 
-                 <!-- Center QR Frame -->
-                 <div class="absolute inset-0 flex items-center justify-center">
-                   <div class="relative w-48 h-48">
-                     <!-- Animated Corner Brackets -->
-                     <div class="absolute top-0 left-0 w-8 h-8 border-l-3 border-t-3 border-lime-400 animate-pulse"></div>
-                     <div class="absolute top-0 right-0 w-8 h-8 border-r-3 border-t-3 border-lime-400 animate-pulse"></div>
-                     <div class="absolute bottom-0 left-0 w-8 h-8 border-l-3 border-b-3 border-lime-400 animate-pulse"></div>
-                     <div class="absolute bottom-0 right-0 w-8 h-8 border-r-3 border-b-3 border-lime-400 animate-pulse"></div>
-
-                     <!-- Inner glow -->
-                     <div class="absolute inset-4 border border-lime-400/20 bg-lime-400/5"></div>
-
-                     <!-- Scanning line -->
-                     <div class="absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-lime-400 to-transparent shadow-[0_0_15px_#a3e635] scan-line"></div>
-                   </div>
-                 </div>
-
-                 <!-- Status Bar -->
-                 <div class="absolute top-4 inset-x-4 flex justify-between items-center">
-                   <div class="flex items-center gap-2 bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/10">
-                     <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                     <span class="text-[10px] font-mono text-zinc-300 uppercase tracking-wider">Scanning</span>
-                   </div>
-                   <div class="bg-black/60 backdrop-blur px-3 py-1.5 rounded-full border border-white/10">
-                     <span class="text-[10px] font-mono text-lime-400">READY</span>
-                   </div>
-                 </div>
-
-                 <!-- Instructions -->
-                 <div class="absolute bottom-16 inset-x-4 text-center">
-                   <p class="text-xs font-mono text-zinc-400">Position QR code within frame</p>
-                 </div>
+                <!-- Status -->
+                <div class="absolute top-3 left-3 flex items-center gap-1.5 bg-black/80 px-2 py-1 border border-white/[0.04]">
+                  <span class="w-1.5 h-1.5 bg-red-500 animate-pulse"></span>
+                  <span class="font-mono text-[8px] text-zinc-500 uppercase tracking-wider">Scanning</span>
+                </div>
               </div>
             } @else {
-               <div class="absolute inset-0 flex flex-col items-center justify-center bg-zinc-900/80 backdrop-blur-sm">
-                  <div class="p-5 sm:p-6 rounded-full bg-white/5 mb-6 border border-white/5 group-hover:border-lime-400/30 transition-colors">
-                    <svg class="h-10 w-10 sm:h-12 sm:w-12 text-zinc-400 group-hover:text-lime-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                    </svg>
-                  </div>
-                  <button (click)="startScanning()" class="rounded-full bg-zinc-800 border border-zinc-700 px-6 py-3 text-sm font-semibold text-white hover:bg-zinc-700 hover:border-zinc-500 transition-all active:scale-95">
-                    Start Scanner
-                  </button>
-                  <p class="mt-4 text-xs text-zinc-500 font-mono">Camera access required</p>
-               </div>
-            }
-
-            <!-- Simulators for Demo -->
-            <div class="absolute bottom-4 inset-x-4 flex gap-2 justify-center z-30">
-               <button (click)="simulateScan('demo')" class="px-4 py-2 bg-black/60 hover:bg-lime-900/30 backdrop-blur text-xs uppercase font-mono tracking-wider text-lime-200 rounded-lg border border-lime-500/20 hover:border-lime-400/50 transition-colors">Debug: "Demo"</button>
-            </div>
-          </div>
-
-          <!-- Manual Code Entry -->
-          <div class="relative py-2">
-            <div class="absolute inset-0 flex items-center" aria-hidden="true">
-              <div class="w-full border-t border-zinc-800"></div>
-            </div>
-            <div class="relative flex justify-center">
-              <span class="bg-zinc-950 px-3 text-xs uppercase tracking-widest text-zinc-500 font-mono" id="manual-code-label">Manual Override</span>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <div class="flex flex-col sm:flex-row gap-3">
-               <input
-                 [formControl]="manualCode"
-                 type="text"
-                 placeholder="Enter Event ID..."
-                 maxlength="12"
-                 aria-label="Event ID"
-                 aria-describedby="manual-code-error"
-                 [attr.aria-invalid]="manualCode.invalid && manualCode.touched"
-                 class="block w-full rounded-xl border-0 bg-zinc-900/50 py-3.5 sm:py-3 px-4 text-white shadow-sm ring-1 ring-inset placeholder:text-zinc-600 focus:ring-2 focus:ring-inset text-base sm:text-sm leading-6 font-mono transition-shadow uppercase"
-                 [class.ring-red-500]="manualCode.invalid && manualCode.touched"
-                 [class.ring-white/10]="manualCode.valid || !manualCode.touched"
-                 [class.focus:ring-red-500]="manualCode.invalid && manualCode.touched"
-                 [class.focus:ring-lime-500]="manualCode.valid || !manualCode.touched"
-               >
-               <button
-                 (click)="submitManual()"
-                 [disabled]="manualCode.invalid || isValidating()"
-                 aria-label="Submit event ID"
-                 class="w-full sm:w-auto rounded-xl bg-lime-400 px-8 py-3.5 sm:py-3 text-sm font-bold text-black shadow-lg hover:bg-lime-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500 disabled:opacity-50 disabled:grayscale transition-all active:scale-95 min-h-[44px]">
-                 {{ isValidating() ? '...' : 'GO' }}
-               </button>
-            </div>
-            @if (manualCode.invalid && manualCode.touched) {
-              <div id="manual-code-error" class="flex items-center gap-2 text-red-400 text-xs font-mono" role="alert" aria-live="polite">
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>
-                  @if (manualCode.errors?.['required']) {
-                    Event ID is required
-                  } @else if (manualCode.errors?.['minlength']) {
-                    Event ID must be at least 4 characters
-                  } @else if (manualCode.errors?.['maxlength']) {
-                    Event ID must be at most 12 characters
-                  } @else if (manualCode.errors?.['pattern']) {
-                    Event ID must be alphanumeric only
-                  }
-                </span>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <div class="w-8 h-8 border border-zinc-800 mb-3 flex items-center justify-center">
+                  <svg class="w-4 h-4 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                </div>
+                <button (click)="startScanning()" class="btn-secondary text-[9px]">Initialize Scanner</button>
+                <div class="font-mono text-[8px] text-zinc-700 uppercase tracking-wider mt-2">Camera required</div>
               </div>
             }
+
+            <!-- Debug -->
+            <div class="absolute bottom-2 inset-x-2 flex justify-center">
+              <button (click)="simulateScan('demo')" class="px-2 py-1 bg-black/80 text-[8px] font-mono text-lime-400/60 border border-lime-500/20 hover:border-lime-400/40 uppercase tracking-wider">
+                Debug: demo
+              </button>
+            </div>
           </div>
 
-        </div>
-      }
+          <!-- Manual Entry -->
+          <div class="relative py-3">
+            <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-900"></div></div>
+            <div class="relative flex justify-center">
+              <span class="bg-zinc-950 px-2 font-mono text-[8px] text-zinc-700 uppercase tracking-wider">Manual Entry</span>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <input
+              [formControl]="manualCode"
+              type="text"
+              placeholder="Protocol ID"
+              maxlength="12"
+              class="flex-1 bg-zinc-900/50 border border-white/[0.04] px-3 py-2 text-white font-mono text-xs uppercase tracking-wider placeholder:text-zinc-700 focus:border-lime-400/30 focus:outline-none"
+            >
+            <button
+              (click)="submitManual()"
+              [disabled]="manualCode.invalid || isValidating()"
+              class="btn-verify disabled:opacity-40"
+            >
+              @if (isValidating()) {
+                <div class="w-3 h-3 border border-black/30 border-t-black animate-spin"></div>
+              } @else {
+                <span>Verify</span>
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              }
+            </button>
+          </div>
+
+          @if (manualCode.invalid && manualCode.touched) {
+            <div class="mt-2 font-mono text-[9px] text-red-400 uppercase tracking-wider">
+              @if (manualCode.errors?.['required']) { ID required }
+              @else if (manualCode.errors?.['minlength']) { Min 4 chars }
+              @else if (manualCode.errors?.['pattern']) { Alphanumeric only }
+            </div>
+          }
+
+        }
+      </div>
     </div>
 
-    <!-- Event Details Modal -->
+    <!-- Event Modal -->
     @if (pendingEvent()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" (click)="cancelCheckIn()" aria-hidden="true"></div>
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/90" (click)="cancelCheckIn()"></div>
 
-        <div class="relative w-full max-w-md bg-zinc-950 border border-zinc-800 shadow-2xl animate-fade-in-up overflow-hidden">
-          <!-- Event Image Header -->
-          <div class="relative h-40 bg-zinc-900 overflow-hidden" aria-hidden="true">
-            <img [src]="pendingEvent()?.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-50" alt="">
-            <div class="absolute inset-0 bg-gradient-to-t from-zinc-950 to-transparent"></div>
-            <div class="absolute top-4 right-4">
-              <span class="font-mono text-[10px] bg-lime-400 text-black px-2 py-1 uppercase tracking-wider">Event Found</span>
+        <div class="relative w-full max-w-sm bg-black border border-white/[0.06]">
+          <!-- Header -->
+          <div class="p-4 border-b border-white/[0.04]">
+            <div class="flex items-center justify-between">
+              <div class="font-mono text-[9px] text-lime-400 uppercase tracking-wider">Event Found</div>
+              <button (click)="cancelCheckIn()" class="text-zinc-600 hover:text-white">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
             </div>
           </div>
 
-          <!-- Event Details -->
-          <div class="p-6 -mt-8 relative z-10">
-            <h2 id="event-modal-title" class="font-display text-2xl font-bold text-white mb-2">{{ pendingEvent()?.name }}</h2>
+          <!-- Content -->
+          <div class="p-4">
+            <div class="font-display text-base text-white mb-1">{{ pendingEvent()?.name }}</div>
+            <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-4">{{ pendingEvent()?.location }}</div>
 
-            <div class="space-y-3 mb-6">
-              <!-- Location -->
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0" aria-hidden="true">
-                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <span class="font-mono text-sm text-zinc-300"><span class="sr-only">Location: </span>{{ pendingEvent()?.location }}</span>
+            <div class="space-y-2 text-xs border-t border-b border-white/[0.04] py-3 mb-4">
+              <div class="flex justify-between">
+                <span class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Date</span>
+                <span class="font-mono text-zinc-400">{{ pendingEvent()?.date }}</span>
               </div>
-
-              <!-- Date -->
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <span class="font-mono text-sm text-zinc-300">{{ pendingEvent()?.date }}</span>
+              <div class="flex justify-between">
+                <span class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Creator</span>
+                <span class="font-mono text-zinc-400 text-[10px]">{{ pendingEvent()?.issuer | slice:0:12 }}...</span>
               </div>
-
-              <!-- Issuer -->
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <span class="font-mono text-sm text-zinc-300 truncate">{{ pendingEvent()?.issuer }}</span>
-              </div>
-
-              <!-- Attendee Count -->
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </div>
-                @if (loadingAttendees()) {
-                  <span class="font-mono text-sm text-zinc-500 animate-pulse">Loading...</span>
-                } @else {
-                  <span class="font-mono text-sm text-zinc-300">{{ attendeeCount() }} {{ attendeeCount() === 1 ? 'attendee' : 'attendees' }} checked in</span>
-                }
+              <div class="flex justify-between">
+                <span class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Observed</span>
+                <span class="font-mono text-zinc-400">
+                  @if (loadingAttendees()) { ... } @else { {{ attendeeCount() }} attestations }
+                </span>
               </div>
             </div>
 
-            <!-- Actions -->
-            <div class="flex gap-3">
-              <button
-                (click)="cancelCheckIn()"
-                class="flex-1 py-3 border border-zinc-700 text-zinc-300 font-bold uppercase tracking-wider text-sm hover:bg-zinc-900 hover:border-zinc-600 transition-colors"
-              >
+            <div class="bg-zinc-900/50 border border-white/[0.04] p-2 mb-4">
+              <div class="font-mono text-[9px] text-zinc-500 uppercase tracking-wider">
+                One attestation per address. Irreversible.
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <button (click)="cancelCheckIn()" class="flex-1 py-2 border border-zinc-800 text-zinc-500 font-mono text-[10px] uppercase tracking-wider hover:border-zinc-700">
                 Cancel
               </button>
-              <button
-                (click)="confirmCheckIn()"
-                class="flex-1 py-3 bg-lime-400 text-black font-bold uppercase tracking-wider text-sm hover:bg-lime-300 transition-colors"
-              >
-                Check In
+              <button (click)="confirmCheckIn()" class="btn-action flex-1 justify-center">
+                <span>Proceed</span>
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -264,24 +207,47 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
     }
   `,
   styles: [`
-    @keyframes fade-in-up {
-      0% { opacity: 0; transform: translateY(20px); }
-      100% { opacity: 1; transform: translateY(0); }
-    }
-    .animate-fade-in-up {
-      animation: fade-in-up 0.6s ease-out forwards;
-    }
     @keyframes scan {
       0%, 100% { top: 0; }
-      50% { top: calc(100% - 2px); }
+      50% { top: calc(100% - 1px); }
     }
     .scan-line {
       animation: scan 2s ease-in-out infinite;
     }
-    .border-l-3 { border-left-width: 3px; }
-    .border-r-3 { border-right-width: 3px; }
-    .border-t-3 { border-top-width: 3px; }
-    .border-b-3 { border-bottom-width: 3px; }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #a3e635 0%, #65a30d 100%);
+      color: black;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+    .btn-action:hover {
+      box-shadow: 0 0 20px rgba(163, 230, 53, 0.3);
+    }
+    .btn-verify {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #a3e635 0%, #65a30d 100%);
+      color: black;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+    .btn-verify:hover:not(:disabled) {
+      box-shadow: 0 0 15px rgba(163, 230, 53, 0.3);
+    }
   `]
 })
 export class CheckInComponent {
@@ -294,7 +260,6 @@ export class CheckInComponent {
   errorMsg = signal<string | null>(null);
   showModal = signal(false);
 
-  // Event details modal state
   pendingEvent = signal<PoPEvent | null>(null);
   attendeeCount = signal(0);
   loadingAttendees = signal(false);
@@ -327,11 +292,10 @@ export class CheckInComponent {
 
     try {
       const event = await this.poapService.getEventByCode(code);
-      // Show event details modal instead of navigating directly
       this.pendingEvent.set(event);
       this.loadAttendeeCount(event.id);
     } catch (err: any) {
-      this.errorMsg.set(err.message || 'Invalid protocol ID. Access denied.');
+      this.errorMsg.set(err.message || 'Invalid protocol ID.');
     } finally {
       this.isValidating.set(false);
     }

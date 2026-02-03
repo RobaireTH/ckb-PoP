@@ -3,32 +3,86 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PoP - Proof of Presence</title>
+  <title>PoP - Proof of Presence Protocol</title>
   <link rel="icon" type="image/png" href="assets/ckb-pop.png">
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Fonts -->
+
+  <!-- Fonts - Premium Stack -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
     :root {
-      --font-sans: 'Inter', sans-serif;
+      --font-sans: 'Inter', system-ui, sans-serif;
       --font-display: 'Space Grotesk', sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
+
+      /* Protocol color tokens - neon lime on deep black */
+      --lime: #a3e635;
+      --lime-glow: rgba(163, 230, 53, 0.4);
+      --lime-subtle: rgba(163, 230, 53, 0.08);
+      --surface-0: #000000;
+      --surface-1: #050505;
+      --surface-2: #0a0a0a;
+      --surface-3: #111111;
+      --border: rgba(255, 255, 255, 0.04);
+      --border-hover: rgba(255, 255, 255, 0.08);
+      --text-muted: #71717a;
+      --text-dim: #52525b;
     }
-    
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      background-color: #050505;
+      background-color: var(--surface-0);
       font-family: var(--font-sans);
+      overflow-x: hidden;
     }
 
     h1, h2, h3, h4, h5, h6 {
       font-family: var(--font-display);
+      letter-spacing: -0.025em;
+      font-weight: 600;
     }
 
-    /* Noise Texture */
+    /* Gradient Mesh Background - Subtle lime radiation */
+    .bg-mesh {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 10% -10%, rgba(163, 230, 53, 0.04), transparent),
+        radial-gradient(ellipse 40% 30% at 90% 100%, rgba(163, 230, 53, 0.03), transparent);
+    }
+
+    /* Grid Overlay - Terminal aesthetic */
+    .bg-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.02;
+      background-image:
+        linear-gradient(rgba(163, 230, 53, 0.15) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(163, 230, 53, 0.15) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* Noise Texture - Industrial grain */
     .bg-noise {
       position: fixed;
       top: 0;
@@ -36,31 +90,259 @@
       width: 100%;
       height: 100%;
       pointer-events: none;
-      z-index: 0; /* Changed from 50 to 0 to sit behind content */
-      opacity: 0.04;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+      z-index: 2;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     }
 
     /* Custom Scrollbar */
     ::-webkit-scrollbar {
-      width: 6px;
+      width: 8px;
+      height: 8px;
     }
     ::-webkit-scrollbar-track {
-      background: #000;
+      background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-      background: #333;
-      border-radius: 0;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #555;
+      background: rgba(255,255,255,0.2);
     }
 
+    /* Font utilities */
     .font-mono { font-family: var(--font-mono) !important; }
     .font-display { font-family: var(--font-display) !important; }
+
+    /* Protocol Glass Effect - Minimal */
+    .glass {
+      background: rgba(5, 5, 5, 0.95);
+      border: 1px solid var(--border);
+    }
+
+    .glass-hover:hover {
+      border-color: var(--border-hover);
+    }
+
+    /* Subtle glow - use sparingly */
+    .glow-lime {
+      box-shadow: 0 0 8px rgba(163, 230, 53, 0.2);
+    }
+
+    .glow-lime-sm {
+      box-shadow: 0 0 4px rgba(163, 230, 53, 0.15);
+    }
+
+    .text-glow-lime {
+      text-shadow: 0 0 8px rgba(163, 230, 53, 0.3);
+    }
+
+    /* Button Styles - Sharp, protocol-level */
+    .btn-primary {
+      background: var(--lime);
+      color: black;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      transition: all 0.1s ease;
+    }
+
+    .btn-primary:hover {
+      background: #bef264;
+    }
+
+    .btn-primary:active {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.6);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      transition: all 0.1s ease;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.02);
+      border-color: rgba(255,255,255,0.15);
+      color: white;
+    }
+
+    /* Card Styles - Sharp protocol aesthetic */
+    .card {
+      background: rgba(5, 5, 5, 0.9);
+      border: 1px solid var(--border);
+      transition: border-color 0.15s ease;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+    }
+
+    /* Badge Card - Compact data display */
+    .badge-card {
+      background: rgba(5, 5, 5, 0.95);
+      border: 1px solid rgba(255,255,255,0.04);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.15s ease;
+    }
+
+    .badge-card:hover {
+      border-color: rgba(163, 230, 53, 0.15);
+    }
+
+    /* Animations - Minimal, fast */
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in {
+      animation: fade-in 0.15s ease forwards;
+    }
+
+    .animate-slide-up {
+      animation: slide-up 0.2s ease-out forwards;
+    }
+
+    /* Stagger children - Fast */
+    .stagger-children > * {
+      opacity: 0;
+      animation: slide-up 0.2s ease-out forwards;
+    }
+
+    .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+    .stagger-children > *:nth-child(2) { animation-delay: 20ms; }
+    .stagger-children > *:nth-child(3) { animation-delay: 40ms; }
+    .stagger-children > *:nth-child(4) { animation-delay: 60ms; }
+    .stagger-children > *:nth-child(5) { animation-delay: 80ms; }
+    .stagger-children > *:nth-child(6) { animation-delay: 100ms; }
+
+    /* Gradient Text - Protocol green */
+    .text-gradient {
+      background: linear-gradient(135deg, #a3e635 0%, #84cc16 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .text-gradient-subtle {
+      background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Selection */
+    ::selection {
+      background: var(--lime);
+      color: black;
+    }
+
+    /* Focus styles */
+    :focus-visible {
+      outline: 2px solid var(--lime);
+      outline-offset: 2px;
+    }
+
+    /* Marquee - Slower, more deliberate */
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .animate-marquee {
+      animation: marquee 40s linear infinite;
+    }
+
+    /* Scan line for QR - Precise */
+    @keyframes scan {
+      0%, 100% { top: 0; opacity: 0.8; }
+      50% { top: calc(100% - 2px); opacity: 0.4; }
+    }
+
+    .animate-scan {
+      animation: scan 2.5s ease-in-out infinite;
+    }
+
+    /* Spinner */
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .animate-spin-slow {
+      animation: spin 4s linear infinite;
+    }
+
+    /* Status dot pulse */
+    @keyframes status-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.4); opacity: 0; }
+    }
+
+    .status-dot::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: inherit;
+      animation: status-pulse 2.5s ease-out infinite;
+    }
+
+    /* Protocol-specific utilities */
+    .mono-xs {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .mono-sm {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    .border-protocol {
+      border: 1px solid var(--border);
+    }
+
+    .border-protocol-hover:hover {
+      border-color: rgba(163, 230, 53, 0.15);
+    }
+
+    /* Verified state */
+    .state-verified {
+      color: var(--lime);
+    }
+
+    .state-pending {
+      color: #fbbf24;
+    }
+
+    .state-unverified {
+      color: var(--text-dim);
+    }
   </style>
 </head>
-<body class="bg-zinc-950 text-zinc-200 antialiased selection:bg-lime-400 selection:text-black min-h-screen relative">
+<body class="bg-black text-zinc-200 antialiased min-h-screen relative">
+  <div class="bg-mesh"></div>
+  <div class="bg-grid"></div>
   <div class="bg-noise"></div>
   <app-root class="relative z-10"></app-root>
 </body>

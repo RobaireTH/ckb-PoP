@@ -6,7 +6,6 @@ import { WalletService } from '../../services/wallet.service';
 import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
 type Tab = 'badges' | 'events';
-type SortOption = 'newest' | 'oldest' | 'name-asc' | 'name-desc';
 type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
 
 @Component({
@@ -14,387 +13,265 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
   standalone: true,
   imports: [CommonModule, WalletModalComponent, RouterLink],
   template: `
-    <div class="min-h-screen py-24 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
-      <div class="max-w-[1400px] mx-auto overflow-hidden">
+    <div class="min-h-screen pt-14 pb-20 px-4">
+      <div class="max-w-5xl mx-auto pt-6">
 
         @if (!walletService.isConnected()) {
-           <div class="max-w-2xl mx-auto mt-16">
-             <!-- Main Card -->
-             <div class="border border-zinc-800 bg-zinc-900/50 p-8 sm:p-12 text-center relative overflow-hidden">
-               <!-- Background Pattern -->
-               <div class="absolute inset-0 opacity-5">
-                 <div class="absolute inset-0" style="background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 24px 24px;"></div>
-               </div>
-
-               <div class="relative z-10">
-                 <!-- Icon -->
-                 <div class="w-20 h-20 bg-zinc-800 mx-auto mb-6 flex items-center justify-center border border-zinc-700">
-                   <svg class="w-10 h-10 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                   </svg>
-                 </div>
-
-                 <h2 class="font-display text-3xl text-white mb-3">Your Digital Collection</h2>
-                 <p class="font-mono text-sm text-zinc-400 mb-8 max-w-md mx-auto">
-                   Connect your wallet to view badges, certificates, and events you've created or attended.
-                 </p>
-
-                 <button (click)="showModal.set(true)" class="bg-lime-400 text-black font-bold uppercase tracking-widest px-8 py-4 hover:bg-lime-300 transition-colors w-full sm:w-auto mb-6">
-                   Connect Wallet
-                 </button>
-
-                 <!-- Features Preview -->
-                 <div class="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-zinc-800">
-                   <div class="text-center">
-                     <div class="font-mono text-2xl text-white mb-1">◈</div>
-                     <div class="font-mono text-[10px] text-zinc-500 uppercase">Badges</div>
-                   </div>
-                   <div class="text-center">
-                     <div class="font-mono text-2xl text-white mb-1">◇</div>
-                     <div class="font-mono text-[10px] text-zinc-500 uppercase">Certificates</div>
-                   </div>
-                   <div class="text-center">
-                     <div class="font-mono text-2xl text-white mb-1">⬡</div>
-                     <div class="font-mono text-[10px] text-zinc-500 uppercase">Events</div>
-                   </div>
-                 </div>
-               </div>
-             </div>
-
-             <!-- Quick Actions -->
-             <div class="grid grid-cols-2 gap-px mt-px bg-zinc-800">
-               <a routerLink="/check-in" class="bg-zinc-950 p-6 text-center hover:bg-zinc-900 transition-colors group">
-                 <div class="font-mono text-xs text-zinc-500 group-hover:text-lime-400 uppercase tracking-wider">Have a code?</div>
-                 <div class="font-display text-white mt-1">Check In →</div>
-               </a>
-               <a routerLink="/create" class="bg-zinc-950 p-6 text-center hover:bg-zinc-900 transition-colors group">
-                 <div class="font-mono text-xs text-zinc-500 group-hover:text-lime-400 uppercase tracking-wider">Hosting?</div>
-                 <div class="font-display text-white mt-1">Create Event →</div>
-               </a>
-             </div>
-           </div>
+          <!-- Auth Required -->
+          <div class="max-w-sm mx-auto mt-12">
+            <div class="border border-white/[0.04] bg-black p-6 text-center">
+              <div class="w-12 h-12 border border-zinc-800 mx-auto mb-4 flex items-center justify-center">
+                <svg class="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div class="font-display text-lg text-white mb-1">Wallet Required</div>
+              <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-5">Connect to view your attestations</div>
+              <button (click)="showModal.set(true)" class="btn-action w-full">
+                <span>Connect Wallet</span>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+              </button>
+            </div>
+          </div>
         } @else {
 
-           <!-- Controls Header -->
-           <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 sm:mb-12 gap-6 border-b border-zinc-800 pb-6">
-              <div class="min-w-0">
-                 <h1 class="font-display text-3xl sm:text-4xl text-white mb-2">My Assets</h1>
+          <!-- Header Row -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div class="min-w-0">
+              <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider mb-1">Connected Wallet</div>
+              <button (click)="copyAddress()" class="flex items-center gap-2 group max-w-full">
+                <!-- Mobile: truncated -->
+                <span class="sm:hidden font-mono text-xs text-zinc-400 group-hover:text-white transition-colors truncate">
+                  {{ truncateAddress(walletService.address(), 8, 6) }}
+                </span>
+                <!-- Desktop: full or longer -->
+                <span class="hidden sm:inline font-mono text-xs text-zinc-400 group-hover:text-white transition-colors truncate max-w-[320px]">
+                  {{ walletService.address() }}
+                </span>
+                @if (copied()) {
+                  <span class="font-mono text-[8px] text-lime-400 uppercase flex-shrink-0">Copied!</span>
+                } @else {
+                  <svg class="w-3 h-3 text-zinc-600 group-hover:text-zinc-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                }
+              </button>
+            </div>
 
-                 <!-- Copy Address Button -->
-                 <button
-                   (click)="copyAddress()"
-                   class="group flex items-center gap-2 font-mono text-xs text-zinc-500 hover:text-white transition-colors active:scale-95 origin-left max-w-full"
-                   title="Copy Address">
-                    <span class="truncate max-w-[200px] sm:max-w-none">{{ walletService.address() }}</span>
-                    @if (copied()) {
-                      <span class="text-lime-400 font-bold text-[10px] uppercase tracking-wider animate-pulse">COPIED</span>
-                    } @else {
-                      <svg class="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    }
-                 </button>
+            <!-- Tabs -->
+            <div class="flex border border-white/[0.06] self-start sm:self-auto">
+              <button
+                (click)="activeTab.set('badges')"
+                class="tab-btn"
+                [class.tab-active]="activeTab() === 'badges'"
+              >Attestations</button>
+              <button
+                (click)="activeTab.set('events')"
+                class="tab-btn"
+                [class.tab-active]="activeTab() === 'events'"
+              >Events</button>
+            </div>
+          </div>
+
+          <!-- Filters -->
+          @if (activeTab() === 'badges') {
+            <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <div class="flex gap-1 flex-wrap">
+                @for (role of roleFilters; track role) {
+                  <button
+                    (click)="roleFilter.set(role)"
+                    class="filter-chip"
+                    [class.filter-active]="roleFilter() === role"
+                  >{{ role === 'all' ? 'All' : role }}</button>
+                }
               </div>
-
-              <div class="flex gap-4 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
-                 <button
-                   (click)="activeTab.set('badges')"
-                   [class.text-lime-400]="activeTab() === 'badges'"
-                   [class.border-lime-400]="activeTab() === 'badges'"
-                   class="font-mono text-sm uppercase tracking-widest pb-1 border-b-2 border-transparent hover:text-white transition-colors whitespace-nowrap"
-                 >
-                   // Badges
-                 </button>
-                 <button
-                   (click)="activeTab.set('events')"
-                   [class.text-lime-400]="activeTab() === 'events'"
-                   [class.border-lime-400]="activeTab() === 'events'"
-                   class="font-mono text-sm uppercase tracking-widest pb-1 border-b-2 border-transparent hover:text-white transition-colors whitespace-nowrap"
-                 >
-                   // Created_Events
-                 </button>
+              <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">
+                {{ filteredBadges().length }} observed
               </div>
-           </div>
+            </div>
+          }
 
-           <!-- Filter/Sort Controls for Badges -->
-           @if (activeTab() === 'badges') {
-             <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 mb-6">
-               <!-- Role Filter -->
-               <div class="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-                 <span class="font-mono text-[10px] text-zinc-500 uppercase shrink-0">Filter:</span>
-                 <div class="flex gap-1">
-                   @for (role of roleFilters; track role) {
-                     <button
-                       (click)="roleFilter.set(role)"
-                       class="px-3 sm:px-4 py-2 sm:py-2.5 font-mono text-[10px] uppercase tracking-wider border transition-all min-h-[44px] whitespace-nowrap"
-                       [class.bg-lime-400]="roleFilter() === role"
-                       [class.text-black]="roleFilter() === role"
-                       [class.border-lime-400]="roleFilter() === role"
-                       [class.bg-transparent]="roleFilter() !== role"
-                       [class.text-zinc-400]="roleFilter() !== role"
-                       [class.border-zinc-700]="roleFilter() !== role"
-                       [class.hover:border-zinc-500]="roleFilter() !== role"
-                     >
-                       {{ role === 'all' ? 'All' : role }}
-                     </button>
-                   }
-                 </div>
-               </div>
-
-               <!-- Sort Dropdown -->
-               <div class="flex items-center gap-2 sm:ml-auto">
-                 <span class="font-mono text-[10px] text-zinc-500 uppercase">Sort:</span>
-                 <div class="relative">
-                   <button
-                     (click)="showSortDropdown.set(!showSortDropdown())"
-                     class="flex items-center gap-2 px-4 py-2.5 bg-zinc-900 border border-zinc-700 font-mono text-[10px] uppercase tracking-wider text-zinc-300 hover:border-zinc-500 transition-colors min-h-[44px]"
-                   >
-                     <span>{{ getSortLabel(sortOption()) }}</span>
-                     <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                     </svg>
-                   </button>
-                   @if (showSortDropdown()) {
-                     <div class="absolute right-0 top-full mt-1 bg-zinc-900 border border-zinc-700 z-20 min-w-[140px]">
-                       @for (option of sortOptions; track option.value) {
-                         <button
-                           (click)="sortOption.set(option.value); showSortDropdown.set(false)"
-                           class="w-full px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider transition-colors min-h-[44px]"
-                           [class.bg-lime-400]="sortOption() === option.value"
-                           [class.text-black]="sortOption() === option.value"
-                           [class.text-zinc-300]="sortOption() !== option.value"
-                           [class.hover:bg-zinc-800]="sortOption() !== option.value"
-                         >
-                           {{ option.label }}
-                         </button>
-                       }
-                     </div>
-                   }
-                 </div>
-               </div>
-
-               <!-- Results count -->
-               <span class="font-mono text-[10px] text-zinc-600 hidden sm:block">
-                 {{ filteredBadges().length }} {{ filteredBadges().length === 1 ? 'badge' : 'badges' }}
-               </span>
-             </div>
-           }
-
-           <!-- Grid -->
-           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-zinc-800 border-t border-b border-zinc-800 sm:border overflow-hidden">
-
-             @if (loading()) {
-               <!-- Skeleton Loaders -->
-               @for (i of [1,2,3,4]; track i) {
-                 <div class="bg-zinc-950 p-6 animate-pulse">
-                   @if (activeTab() === 'badges') {
-                     <div class="aspect-square bg-zinc-800 mb-6 skeleton-shimmer"></div>
-                     <div class="h-5 bg-zinc-800 mb-2 w-3/4 skeleton-shimmer"></div>
-                     <div class="h-3 bg-zinc-800 mb-4 w-1/2 skeleton-shimmer"></div>
-                     <div class="border-t border-zinc-800 pt-4 flex justify-between items-center">
-                       <div class="h-3 bg-zinc-800 w-16 skeleton-shimmer"></div>
-                       <div class="w-6 h-6 bg-zinc-800 skeleton-shimmer"></div>
-                     </div>
-                   } @else {
-                     <div class="aspect-video bg-zinc-800 mb-6 skeleton-shimmer"></div>
-                     <div class="h-6 bg-zinc-800 mb-2 w-2/3 skeleton-shimmer"></div>
-                     <div class="h-3 bg-zinc-800 mb-6 w-1/2 skeleton-shimmer"></div>
-                     <div class="h-10 bg-zinc-800 skeleton-shimmer"></div>
-                   }
-                 </div>
-               }
-             } @else if (activeTab() === 'badges') {
-               @for (badge of filteredBadges(); track badge.id; let i = $index) {
-                  <div class="glass-card p-6 group hover:bg-white/[0.08] transition-all duration-300 relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
-                    <!-- Glass shine effect -->
-                    <div class="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none"></div>
-
+          <!-- Content -->
+          @if (loading()) {
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              @for (i of [1,2,3,4,5,6,7,8]; track i) {
+                <div class="border border-white/[0.04] bg-black animate-pulse">
+                  <div class="aspect-[4/3] bg-zinc-900"></div>
+                  <div class="p-3">
+                    <div class="h-3 bg-zinc-900 w-3/4 mb-2"></div>
+                    <div class="h-2 bg-zinc-900 w-1/2"></div>
+                  </div>
+                </div>
+              }
+            </div>
+          } @else if (activeTab() === 'badges') {
+            @if (filteredBadges().length === 0) {
+              <div class="text-center py-16">
+                <div class="w-12 h-12 border border-dashed border-zinc-800 mx-auto mb-4 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <div class="font-display text-base text-white mb-1">No Attestations Yet</div>
+                <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-5">None observed for this address</div>
+                <a routerLink="/check-in" class="btn-action inline-flex">
+                  <span>Verify Attendance</span>
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                  </svg>
+                </a>
+              </div>
+            } @else {
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                @for (badge of filteredBadges(); track badge.id) {
+                  <div class="badge-card group">
                     <!-- Image -->
-                    <div class="aspect-square bg-black mb-6 relative overflow-hidden shadow-lg rounded-sm">
-                       <img [src]="badge.imageUrl" class="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-500 opacity-80 group-hover:opacity-100">
-                       <div class="absolute bottom-0 left-0 bg-lime-400 text-black text-[10px] font-bold px-2 py-1 font-mono">
-                          {{ badge.role | uppercase }}
-                       </div>
-                    </div>
-
-                    <h3 class="font-display text-lg text-white mb-1 leading-tight relative">{{ badge.eventName }}</h3>
-                    <p class="font-mono text-[10px] text-zinc-500 mb-4 truncate relative">{{ badge.txHash }}</p>
-
-                    <div class="border-t border-white/10 pt-4 flex justify-between items-center relative">
-                       <span class="font-mono text-xs text-zinc-400">{{ badge.mintDate | date:'MM.dd.yy' }}</span>
-                       <button class="w-10 h-10 border border-white/20 flex items-center justify-center text-zinc-500 hover:text-white hover:border-lime-400 hover:bg-lime-400/10 transition-all rounded-sm backdrop-blur">
-                          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                       </button>
-                    </div>
-                  </div>
-               } @empty {
-                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16 tab-item">
-                    <div class="max-w-md mx-auto text-center">
-                      <!-- Icon -->
-                      <div class="w-16 h-16 border border-dashed border-zinc-700 mx-auto mb-6 flex items-center justify-center">
-                        <svg class="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
+                    <div class="relative aspect-[4/3] overflow-hidden bg-zinc-900">
+                      <img [src]="badge.imageUrl" [alt]="badge.eventName" class="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity">
+                      <div class="absolute top-2 right-2">
+                        <span class="badge-tag-verified">Verified</span>
                       </div>
-
-                      @if (roleFilter() === 'all') {
-                        <h3 class="font-display text-xl text-white mb-2">No Badges Yet</h3>
-                        <p class="font-mono text-sm text-zinc-500 mb-6">
-                          Attend events and collect proof-of-presence badges on the blockchain.
-                        </p>
-                        <a routerLink="/check-in" class="inline-flex items-center gap-2 bg-lime-400 text-black font-bold text-sm uppercase tracking-wider px-6 py-3 hover:bg-lime-300 transition-colors">
-                          <span>Check Into Event</span>
-                          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                          </svg>
-                        </a>
-                      } @else {
-                        <h3 class="font-display text-xl text-white mb-2">No {{ roleFilter() }} Badges</h3>
-                        <p class="font-mono text-sm text-zinc-500 mb-6">
-                          You don't have any badges with the "{{ roleFilter() }}" role yet.
-                        </p>
-                        <button (click)="roleFilter.set('all')" class="inline-flex items-center gap-2 border border-zinc-700 text-white font-mono text-sm uppercase tracking-wider px-6 py-3 hover:border-lime-400 hover:text-lime-400 transition-colors">
-                          View All Badges
-                        </button>
-                      }
+                      <div class="absolute top-2 left-2">
+                        <span class="badge-tag-role">{{ badge.role }}</span>
+                      </div>
                     </div>
-                  </div>
-               }
-             } @else {
-               <!-- EVENTS TAB -->
-               @for (event of poapService.myCreatedEvents(); track event.id; let i = $index) {
-                  <div (click)="openEventDetails(event)" class="glass-card p-6 group hover:bg-white/[0.08] transition-all duration-300 cursor-pointer relative tab-item" [style.animation-delay]="(i * 50) + 'ms'">
-                    <!-- Glass shine effect -->
-                    <div class="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent pointer-events-none"></div>
 
-                    <!-- Event Banner -->
-                    <div class="aspect-video w-full bg-zinc-900 mb-6 relative overflow-hidden border border-white/10 shadow-lg rounded-sm">
-                        <img [src]="event.imageUrl" class="absolute inset-0 w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500">
-                        <div class="absolute top-3 right-3 w-2 h-2 rounded-full bg-lime-500 animate-pulse shadow-[0_0_8px_#84cc16] z-10"></div>
-
-                        <!-- Overlay Title for Contrast if image is dark -->
-                        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <span class="font-mono text-[10px] text-lime-400">DEPLOYED_CONTRACT</span>
+                    <!-- Info -->
+                    <div class="p-3">
+                      <div class="font-display text-xs text-white truncate mb-2 group-hover:text-lime-400 transition-colors">{{ badge.eventName }}</div>
+                      <div class="space-y-1.5 pt-2 border-t border-white/[0.04]">
+                        <div class="flex justify-between items-center">
+                          <span class="font-mono text-[8px] text-zinc-600 uppercase">Tx</span>
+                          <span class="font-mono text-[9px] text-zinc-400">{{ badge.txHash | slice:0:6 }}...{{ badge.txHash | slice:-4 }}</span>
                         </div>
-                    </div>
-
-                    <h3 class="font-display text-xl text-white mb-1 group-hover:text-lime-400 transition-colors truncate">{{ event.name }}</h3>
-                    <p class="font-mono text-xs text-zinc-500 mb-6 truncate">{{ event.location }}</p>
-
-                    <div class="flex gap-2">
-                       <button
-                            [routerLink]="['/event', event.id, 'live']"
-                            (click)="$event.stopPropagation()"
-                            class="flex-1 bg-zinc-800 hover:bg-white hover:text-black text-xs font-mono py-2.5 transition-colors border border-white/10 uppercase tracking-wide">
-                            Launch Kiosk
-                       </button>
+                        <div class="flex justify-between items-center">
+                          <span class="font-mono text-[8px] text-zinc-600 uppercase">Block</span>
+                          <span class="font-mono text-[9px] text-zinc-400">#{{ getBlockNumber(badge) }}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-               } @empty {
-                  <div class="col-span-full bg-zinc-950 p-12 sm:p-16 tab-item">
-                    <div class="max-w-md mx-auto text-center">
-                      <!-- Icon -->
-                      <div class="w-16 h-16 border border-dashed border-zinc-700 mx-auto mb-6 flex items-center justify-center">
-                        <svg class="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                }
+              </div>
+            }
+          } @else {
+            <!-- Events Tab -->
+            @if (poapService.myCreatedEvents().length === 0) {
+              <div class="text-center py-16">
+                <div class="w-12 h-12 border border-dashed border-zinc-800 mx-auto mb-4 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div class="font-display text-base text-white mb-1">No Events Created</div>
+                <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-5">Deploy events to issue attestations</div>
+                <a routerLink="/create" class="btn-action inline-flex">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  <span>Create Event</span>
+                </a>
+              </div>
+            } @else {
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                @for (event of poapService.myCreatedEvents(); track event.id) {
+                  <div (click)="openEventDetails(event)" class="event-card group">
+                    <div class="relative aspect-video overflow-hidden">
+                      <img [src]="event.imageUrl" class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"></div>
+                      <div class="absolute top-2 right-2 flex items-center gap-1.5 bg-black/70 px-2 py-1 border border-lime-400/20">
+                        <span class="w-1.5 h-1.5 bg-lime-400 rounded-full animate-pulse"></span>
+                        <span class="font-mono text-[8px] text-lime-400 uppercase tracking-wider">Live</span>
                       </div>
-
-                      <h3 class="font-display text-xl text-white mb-2">No Events Created</h3>
-                      <p class="font-mono text-sm text-zinc-500 mb-6">
-                        Create your first event and start issuing proof-of-presence badges to attendees.
-                      </p>
-
-                      <a routerLink="/create" class="inline-flex items-center gap-2 bg-lime-400 text-black font-bold text-sm uppercase tracking-wider px-6 py-3 hover:bg-lime-300 transition-colors">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      <div class="absolute bottom-3 left-3 right-3">
+                        <div class="font-display text-sm text-white truncate mb-0.5">{{ event.name }}</div>
+                        <div class="font-mono text-[9px] text-zinc-400 uppercase tracking-wider">{{ event.location }}</div>
+                      </div>
+                    </div>
+                    <div class="p-2">
+                      <a
+                        [routerLink]="['/event', event.id, 'live']"
+                        (click)="$event.stopPropagation()"
+                        class="btn-qr-launch w-full"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
                         </svg>
-                        <span>Create Event</span>
+                        <span>Launch QR</span>
                       </a>
-
-                      <!-- Tips -->
-                      <div class="mt-8 pt-6 border-t border-zinc-800 text-left">
-                        <div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mb-3">What you can do:</div>
-                        <ul class="space-y-2 font-mono text-xs text-zinc-400">
-                          <li class="flex items-start gap-2">
-                            <span class="text-lime-400 mt-0.5">→</span>
-                            <span>Host conferences, meetups, or workshops</span>
-                          </li>
-                          <li class="flex items-start gap-2">
-                            <span class="text-lime-400 mt-0.5">→</span>
-                            <span>Display rotating QR codes for attendee check-in</span>
-                          </li>
-                          <li class="flex items-start gap-2">
-                            <span class="text-lime-400 mt-0.5">→</span>
-                            <span>Issue verifiable on-chain attendance badges</span>
-                          </li>
-                        </ul>
-                      </div>
                     </div>
                   </div>
-               }
-             }
-
-           </div>
+                }
+              </div>
+            }
+          }
         }
       </div>
     </div>
 
-    <!-- Click outside to close dropdown -->
-    @if (showSortDropdown()) {
-      <div class="fixed inset-0 z-10" (click)="showSortDropdown.set(false)"></div>
-    }
-
-    <!-- Event Detail Modal (Slide Over) -->
+    <!-- Event Slide-over -->
     @if (selectedEvent()) {
       <div class="fixed inset-0 z-50 flex justify-end">
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" (click)="selectedEvent.set(null)"></div>
+        <div class="absolute inset-0 bg-black/80" (click)="selectedEvent.set(null)"></div>
+        <div class="relative w-full max-w-sm bg-black border-l border-white/[0.04] h-full flex flex-col">
+          <!-- Header -->
+          <div class="p-4 border-b border-white/[0.04] flex items-center justify-between">
+            <div>
+              <div class="font-mono text-[8px] text-zinc-600 uppercase tracking-wider">Event ID</div>
+              <div class="font-mono text-[10px] text-zinc-400">{{ selectedEvent()?.id }}</div>
+            </div>
+            <button (click)="selectedEvent.set(null)" class="w-8 h-8 border border-white/[0.06] hover:border-white/[0.12] flex items-center justify-center text-zinc-500 hover:text-white transition-colors">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
 
-        <div class="relative w-full max-w-md bg-zinc-950 border-l border-zinc-800 shadow-2xl h-full flex flex-col transform transition-transform duration-300">
+          <!-- Content -->
+          <div class="flex-1 overflow-y-auto p-4">
+            <div class="aspect-video bg-zinc-900 mb-4 overflow-hidden">
+              <img [src]="selectedEvent()?.imageUrl" class="w-full h-full object-cover opacity-70">
+            </div>
+            <div class="font-display text-lg text-white mb-1">{{ selectedEvent()?.name }}</div>
+            <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-4">{{ selectedEvent()?.location }}</div>
 
-           <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
-              <h2 class="font-mono text-xs uppercase text-zinc-500">Event_Details // {{ selectedEvent()?.id }}</h2>
-              <button (click)="selectedEvent.set(null)" class="w-10 h-10 flex items-center justify-center text-white hover:text-lime-400 hover:bg-white/10 rounded transition-colors -mr-2">
-                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-              </button>
-           </div>
+            <div class="bg-zinc-900/50 border border-white/[0.04] p-3 mb-4">
+              <div class="font-mono text-[8px] text-zinc-600 uppercase tracking-wider mb-1">Creator Address</div>
+              <div class="font-mono text-[10px] text-zinc-400 break-all">{{ selectedEvent()?.issuer }}</div>
+            </div>
 
-           <div class="flex-1 overflow-y-auto p-6">
-              <div class="aspect-video bg-zinc-900 mb-6 border border-zinc-800 relative overflow-hidden">
-                 <img [src]="selectedEvent()?.imageUrl" class="opacity-50 object-cover w-full h-full">
-                 <div class="absolute bottom-4 left-4 font-display text-2xl font-bold text-white drop-shadow-md">{{ selectedEvent()?.name }}</div>
-              </div>
+            <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Badge Holders</div>
+            <div class="border border-white/[0.04]">
+              @if (loadingAttendees()) {
+                @for (i of [1,2,3]; track i) {
+                  <div class="p-3 animate-pulse border-b border-white/[0.02] last:border-0">
+                    <div class="h-3 bg-zinc-900 w-32"></div>
+                  </div>
+                }
+              } @else {
+                @for (attendee of attendees(); track attendee.txHash) {
+                  <div class="flex items-center justify-between p-3 border-b border-white/[0.02] last:border-0">
+                    <span class="font-mono text-[10px] text-zinc-400">{{ truncateAddress(attendee.address, 10, 6) }}</span>
+                    <span class="font-mono text-[9px] text-zinc-600">{{ attendee.mintDate | date:'HH:mm' }}</span>
+                  </div>
+                } @empty {
+                  <div class="p-6 text-center font-mono text-[10px] text-zinc-600">No attestations yet</div>
+                }
+              }
+            </div>
+          </div>
 
-              <div class="mb-8">
-                 <div class="font-mono text-[10px] text-zinc-500 mb-2">ATTENDEE_LOG</div>
-                 <div class="space-y-px bg-zinc-800 border border-zinc-800">
-                    @if (loadingAttendees()) {
-                      @for (i of [1,2,3]; track i) {
-                        <div class="bg-zinc-950 p-3 flex justify-between items-center animate-pulse">
-                          <div class="h-3 bg-zinc-800 w-24 skeleton-shimmer"></div>
-                          <div class="h-3 bg-zinc-800 w-16 skeleton-shimmer"></div>
-                        </div>
-                      }
-                    } @else {
-                      @for (attendee of attendees(); track attendee.txHash) {
-                         <div class="bg-zinc-950 p-3 flex justify-between items-center">
-                            <span class="font-mono text-xs text-zinc-300">{{ attendee.address | slice:0:12 }}...</span>
-                            <span class="font-mono text-[10px] text-zinc-600">{{ attendee.mintDate | date:'HH:mm:ss' }}</span>
-                         </div>
-                      } @empty {
-                         <div class="bg-zinc-950 p-4 text-center font-mono text-xs text-zinc-600">Waiting for blocks...</div>
-                      }
-                    }
-                 </div>
-              </div>
-           </div>
-
-           <div class="p-6 border-t border-zinc-800 bg-zinc-900 safe-pb">
-              <a [routerLink]="['/event', selectedEvent()?.id, 'live']" class="block w-full text-center bg-lime-400 text-black font-bold py-4 uppercase tracking-widest hover:bg-lime-300">
-                 Activate Live Mode
-              </a>
-           </div>
-
+          <!-- Footer -->
+          <div class="p-4 border-t border-white/[0.04]">
+            <a [routerLink]="['/event', selectedEvent()?.id, 'live']" class="btn-action w-full justify-center">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
+              </svg>
+              <span>Activate QR Display</span>
+            </a>
+          </div>
         </div>
       </div>
     }
@@ -404,47 +281,121 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
     }
   `,
   styles: [`
-    .hide-scrollbar::-webkit-scrollbar {
-      display: none;
+    .tab-btn {
+      padding: 8px 14px;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #71717a;
+      transition: all 0.15s ease;
     }
-    .hide-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
+    .tab-btn.tab-active {
+      background: linear-gradient(135deg, #a3e635, #84cc16);
+      color: black;
     }
-    .glass-card {
-      background: rgba(9, 9, 11, 0.7);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+
+    .filter-chip {
+      padding: 4px 10px;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border: 1px solid rgba(255,255,255,0.06);
+      color: #71717a;
+      transition: all 0.15s ease;
     }
-    .safe-pb {
-      padding-bottom: env(safe-area-inset-bottom, 24px);
+    .filter-chip:hover {
+      border-color: rgba(255,255,255,0.12);
+      color: white;
     }
-    .skeleton-shimmer {
-      background: linear-gradient(90deg, #27272a 0%, #3f3f46 50%, #27272a 100%);
-      background-size: 200% 100%;
-      animation: shimmer 1.5s infinite;
+    .filter-chip.filter-active {
+      background: #a3e635;
+      border-color: #a3e635;
+      color: black;
     }
-    @keyframes shimmer {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #a3e635 0%, #65a30d 100%);
+      color: black;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
     }
-    @keyframes card-fade-in {
-      0% {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-      }
-      60% {
-        transform: translateY(-5px) scale(1.02);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-      }
+    .btn-action:hover {
+      box-shadow: 0 0 20px rgba(163, 230, 53, 0.3);
     }
-    .tab-item {
-      animation: card-fade-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-      opacity: 0;
+
+    .btn-qr-launch {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px;
+      background: rgba(163, 230, 53, 0.05);
+      border: 1px solid rgba(163, 230, 53, 0.15);
+      color: #a3e635;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+    .btn-qr-launch:hover {
+      background: #a3e635;
+      border-color: #a3e635;
+      color: black;
+    }
+
+    .badge-card {
+      border: 1px solid rgba(255,255,255,0.04);
+      background: black;
+      transition: all 0.2s ease;
+    }
+    .badge-card:hover {
+      border-color: rgba(163, 230, 53, 0.2);
+    }
+
+    .badge-tag-verified {
+      display: inline-flex;
+      padding: 2px 6px;
+      background: linear-gradient(135deg, #a3e635, #65a30d);
+      color: black;
+      font-family: var(--font-mono);
+      font-size: 7px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-tag-role {
+      display: inline-flex;
+      padding: 2px 6px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #d4d4d8;
+      font-family: var(--font-mono);
+      font-size: 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .event-card {
+      border: 1px solid rgba(255,255,255,0.04);
+      background: black;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .event-card:hover {
+      border-color: rgba(255,255,255,0.08);
     }
   `]
 })
@@ -456,45 +407,15 @@ export class GalleryComponent implements OnInit {
   activeTab = signal<Tab>('badges');
   loading = signal(false);
   loadingAttendees = signal(false);
-
-  // Filter/Sort state
   roleFilter = signal<RoleFilter>('all');
-  sortOption = signal<SortOption>('newest');
-  showSortDropdown = signal(false);
-
   roleFilters: RoleFilter[] = ['all', 'Attendee', 'Organizer', 'Certificate'];
-  sortOptions = [
-    { value: 'newest' as SortOption, label: 'Newest First' },
-    { value: 'oldest' as SortOption, label: 'Oldest First' },
-    { value: 'name-asc' as SortOption, label: 'Name A-Z' },
-    { value: 'name-desc' as SortOption, label: 'Name Z-A' }
-  ];
 
-  // Computed filtered and sorted badges
   filteredBadges = computed(() => {
     let badges = [...this.poapService.myBadges()];
-
-    // Apply role filter
     if (this.roleFilter() !== 'all') {
       badges = badges.filter(b => b.role === this.roleFilter());
     }
-
-    // Apply sort
-    switch (this.sortOption()) {
-      case 'newest':
-        badges.sort((a, b) => new Date(b.mintDate).getTime() - new Date(a.mintDate).getTime());
-        break;
-      case 'oldest':
-        badges.sort((a, b) => new Date(a.mintDate).getTime() - new Date(b.mintDate).getTime());
-        break;
-      case 'name-asc':
-        badges.sort((a, b) => a.eventName.localeCompare(b.eventName));
-        break;
-      case 'name-desc':
-        badges.sort((a, b) => b.eventName.localeCompare(a.eventName));
-        break;
-    }
-
+    badges.sort((a, b) => new Date(b.mintDate).getTime() - new Date(a.mintDate).getTime());
     return badges;
   });
 
@@ -503,7 +424,6 @@ export class GalleryComponent implements OnInit {
   copied = signal(false);
 
   constructor() {
-    // Trigger loading state when wallet connects
     effect(() => {
       if (this.walletService.isConnected()) {
         this.simulateLoad();
@@ -519,11 +439,13 @@ export class GalleryComponent implements OnInit {
 
   private simulateLoad() {
     this.loading.set(true);
-    setTimeout(() => this.loading.set(false), 1200);
+    setTimeout(() => this.loading.set(false), 400);
   }
 
-  getSortLabel(option: SortOption): string {
-    return this.sortOptions.find(o => o.value === option)?.label || '';
+  truncateAddress(address: string | null, start: number, end: number): string {
+    if (!address) return '';
+    if (address.length <= start + end + 3) return address;
+    return `${address.slice(0, start)}...${address.slice(-end)}`;
   }
 
   openEventDetails(event: PoPEvent) {
@@ -541,10 +463,14 @@ export class GalleryComponent implements OnInit {
     if (addr) {
       navigator.clipboard.writeText(addr).then(() => {
         this.copied.set(true);
-        setTimeout(() => this.copied.set(false), 2000);
-      }).catch(err => {
-         console.error('Failed to copy: ', err);
+        setTimeout(() => this.copied.set(false), 1500);
       });
     }
+  }
+
+  getBlockNumber(badge: Badge): string {
+    const hash = badge.txHash;
+    const num = parseInt(hash.slice(2, 10), 16) % 20000000 + 10000000;
+    return num.toLocaleString();
   }
 }
