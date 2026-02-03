@@ -1,0 +1,19 @@
+[package]
+name = "dob-badge"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "DOB Badge type script for CKB-PoP protocol"
+
+[dependencies]
+ckb-std = "0.16"
+
+[features]
+default = []
+
+[profile.release]
+overflow-checks = true
+opt-level = 's'
+lto = true
+codegen-units = 1
+panic = 'abort'
