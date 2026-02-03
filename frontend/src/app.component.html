@@ -4,26 +4,21 @@
   @if (offlineService.isOffline()) {
     <!-- Full-screen offline overlay -->
     <div class="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center px-6" role="alert" aria-live="assertive">
-      <div class="text-center max-w-md">
+      <div class="text-center max-w-sm">
         <!-- Offline icon -->
-        <div class="mx-auto w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6">
-          <svg class="w-10 h-10 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <div class="mx-auto w-12 h-12 border border-zinc-800 flex items-center justify-center mb-5">
+          <svg class="w-5 h-5 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
           </svg>
         </div>
 
-        <h1 class="text-2xl font-bold text-white mb-3">You're Offline</h1>
-        <p class="text-zinc-400 mb-8">
-          CKB-PoP requires an internet connection to interact with the blockchain. Please check your connection and try again.
-        </p>
+        <div class="font-display text-lg text-white mb-1">No Connection</div>
+        <div class="font-mono text-[10px] text-zinc-600 uppercase tracking-wider mb-6">Network required for blockchain access</div>
 
-        <!-- Pulse indicator -->
-        <div class="flex items-center justify-center gap-2 text-zinc-500">
-          <span class="relative flex h-3 w-3">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-          </span>
-          <span class="text-sm font-mono uppercase tracking-wider">Waiting for connection</span>
+        <!-- Status -->
+        <div class="flex items-center justify-center gap-2">
+          <span class="w-1.5 h-1.5 bg-amber-500 animate-pulse"></span>
+          <span class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Reconnecting</span>
         </div>
       </div>
     </div>
