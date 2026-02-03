@@ -8,12 +8,12 @@
 //!   - Providing verifiable on-chain timestamp for events
 //!   - Enabling trustless event discovery
 //!
+//! Cell data should contain JSON metadata:
+//!   { event_id, creator_address, metadata_hash, created_at_block }
+//!
 //! Args format (64 bytes):
 //!   - bytes 0-31:  SHA256(event_id)
 //!   - bytes 32-63: SHA256(creator_address)
-//!
-//! Cell data should contain JSON metadata:
-//!   { event_id, creator_address, metadata_hash, created_at_block }
 
 #![no_std]
 #![no_main]

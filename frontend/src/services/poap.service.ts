@@ -2,6 +2,7 @@ import { Injectable, signal, inject, computed } from '@angular/core';
 import { GoogleGenAI } from "@google/genai";
 import { WalletService } from './wallet.service';
 import { ToastService } from './toast.service';
+import { ContractService, ChainRejectionError } from './contract.service';
 
 export interface PoPEvent {
   id: string;
@@ -11,6 +12,7 @@ export interface PoPEvent {
   location: string;
   description?: string;
   imageUrl?: string;
+  anchorTxHash?: string; // On-chain event anchor transaction
 }
 
 export interface Badge {
@@ -36,6 +38,7 @@ export interface Attendee {
 export class PoapService {
   private walletService = inject(WalletService);
   private toast = inject(ToastService);
+  private contractService = inject(ContractService);
 
   private readonly badgesSignal = signal<Badge[]>([
     {
@@ -123,20 +126,53 @@ export class PoapService {
   }
 
   async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Generate event ID
+    const eventId = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // Create event anchor on-chain (optional but strengthens decentralization)
+    let anchorTxHash: string | undefined;
+    try {
+      // Hash of event metadata for on-chain reference
+      const metadataJson = JSON.stringify({
+        name: eventData.name,
+        date: eventData.date,
+        location: eventData.location,
+        description: eventData.description,
+      });
+      const encoder = new TextEncoder();
+      const metadataBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(metadataJson));
+      const metadataHash = '0x' + Array.from(new Uint8Array(metadataBuffer))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+
+      anchorTxHash = await this.contractService.createEventAnchor(
+        eventId,
+        issuerAddress,
+        metadataHash
+      );
+    } catch (e) {
+      console.warn("Event anchor creation failed (non-critical):", e);
+      // Continue without anchor - events can still work without on-chain anchor
+    }
 
     const newEvent: PoPEvent = {
-        id: Math.random().toString(36).substring(2, 8).toUpperCase(),
+        id: eventId,
         name: eventData.name,
         date: eventData.date,
         location: eventData.location,
         issuer: issuerAddress,
         description: eventData.description,
-        imageUrl: eventData.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`
+        imageUrl: eventData.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
+        anchorTxHash
     };
 
     this.eventsSignal.update(evts => [newEvent, ...evts]);
-    this.toast.success(`Event created: ${newEvent.name}`);
+
+    if (anchorTxHash) {
+      this.toast.success(`Event anchored on-chain: ${newEvent.name}`);
+    } else {
+      this.toast.success(`Event created: ${newEvent.name}`);
+    }
+
     return newEvent;
   }
 
@@ -154,6 +190,7 @@ export class PoapService {
   }
 
   async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
+    // Generate AI description first (non-blocking)
     let aiDesc = "Verified proof of attendance.";
     try {
       const ai = new GoogleGenAI({ apiKey: process.env['API_KEY'] });
@@ -169,12 +206,30 @@ export class PoapService {
       console.warn("AI generation failed, using default", e);
     }
 
+    // Mint badge on-chain via ContractService
+    // The TYPE SCRIPT enforces uniqueness - if badge exists, chain rejects
+    let txHash: string;
+    try {
+      txHash = await this.contractService.mintBadge(
+        event.id,
+        event.issuer,
+        address
+      );
+    } catch (err) {
+      // Surface chain rejection to user
+      if (err instanceof ChainRejectionError) {
+        this.toast.error(err.message);
+        throw err;
+      }
+      throw err;
+    }
+
     const newBadge: Badge = {
       id: crypto.randomUUID(),
       eventId: event.id,
       eventName: event.name,
       mintDate: new Date().toISOString(),
-      txHash: '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join(''),
+      txHash,
       imageUrl: event.imageUrl || `https://picsum.photos/seed/${event.id}/400/400`,
       aiDescription: aiDesc,
       role: 'Attendee'
@@ -183,5 +238,13 @@ export class PoapService {
     this.badgesSignal.update(badges => [newBadge, ...badges]);
     this.toast.success(`Badge minted for ${event.name}`);
     return newBadge;
+  }
+
+  /**
+   * UX hint: Check if badge might already exist.
+   * For display purposes only - not enforcement.
+   */
+  async checkBadgeExistsHint(eventId: string, address: string): Promise<boolean> {
+    return this.contractService.badgeExistsHint(eventId, address);
   }
 }
