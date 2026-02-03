@@ -4,7 +4,7 @@ import { WalletService } from './wallet.service';
 
 /**
  * Contract configuration for deployed type scripts.
- * Update these after deploying contracts to testnet/mainnet.
+ * Note to future me: Update these after deploying contracts to testnet/mainnet.
  */
 export interface ContractConfig {
   codeHash: string;
@@ -292,6 +292,7 @@ export class ContractService {
     const cells = client.findCells({
       script: typeScript,
       scriptType: 'type',
+      scriptSearchMode: 'exact',
     });
 
     // Check if any cells exist
@@ -316,6 +317,7 @@ export class ContractService {
     const cells = client.findCells({
       script: typeScript,
       scriptType: 'type',
+      scriptSearchMode: 'exact',
     });
 
     for await (const _ of cells) {
