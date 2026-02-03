@@ -4,7 +4,11 @@ import { WalletService } from './wallet.service';
 
 /**
  * Contract configuration for deployed type scripts.
- * Note to future me: Update these after deploying contracts to testnet/mainnet.
+ * These MUST match the deployed contracts exactly.
+ *
+ * Args schema (defined by contracts, mirrored here):
+ *   - DOB Badge:    SHA256(event_id) || SHA256(recipient_address) = 64 bytes
+ *   - Event Anchor: SHA256(event_id) || SHA256(creator_address)   = 64 bytes
  */
 export interface ContractConfig {
   codeHash: string;
@@ -18,54 +22,81 @@ export interface ContractConfig {
   };
 }
 
-// Placeholder configs - update after deployment
+/**
+ * Contract deployment configs - loaded from environment at build time.
+ * In production, these come from: import.meta.env.VITE_DOB_BADGE_CODE_HASH etc.
+ */
 const DOB_BADGE_CONFIG: ContractConfig = {
-  codeHash: '0x0000000000000000000000000000000000000000000000000000000000000001',
-  hashType: 'type',
+  codeHash: import.meta.env?.['VITE_DOB_BADGE_CODE_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000001',
+  hashType: (import.meta.env?.['VITE_DOB_BADGE_HASH_TYPE'] as ContractConfig['hashType']) || 'type',
   cellDep: {
     outPoint: {
-      txHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      index: 0,
+      txHash: import.meta.env?.['VITE_DOB_BADGE_DEP_TX_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000000',
+      index: Number(import.meta.env?.['VITE_DOB_BADGE_DEP_INDEX']) || 0,
     },
     depType: 'code',
   },
 };
 
 const EVENT_ANCHOR_CONFIG: ContractConfig = {
-  codeHash: '0x0000000000000000000000000000000000000000000000000000000000000002',
-  hashType: 'type',
+  codeHash: import.meta.env?.['VITE_EVENT_ANCHOR_CODE_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000002',
+  hashType: (import.meta.env?.['VITE_EVENT_ANCHOR_HASH_TYPE'] as ContractConfig['hashType']) || 'type',
   cellDep: {
     outPoint: {
-      txHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      index: 0,
+      txHash: import.meta.env?.['VITE_EVENT_ANCHOR_DEP_TX_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000000',
+      index: Number(import.meta.env?.['VITE_EVENT_ANCHOR_DEP_INDEX']) || 0,
     },
     depType: 'code',
   },
 };
 
-// Minimum cell capacity in shannons (1 CKB = 10^8 shannons)
-const MIN_CELL_CAPACITY = BigInt(142) * BigInt(10 ** 8); // ~142 CKB for type script cells
+/**
+ * Check if contracts are deployed (non-placeholder code hashes)
+ */
+const CONTRACTS_DEPLOYED = !DOB_BADGE_CONFIG.codeHash.endsWith('0001');
 
 /**
- * Badge metadata stored in cell data
+ * Cell data format (binary, versioned):
+ * [ version: u8 | flags: u8 | content_hash: 32 bytes ]
+ *
+ * Version 1 flags:
+ *   0x01 = has off-chain metadata
  */
-export interface BadgeMetadata {
-  protocol: 'ckb-pop';
-  version: '1';
-  event_id: string;
-  issuer: string;
-  issued_at_block?: number;
-  attendance_proof_hash?: string;
-}
+const DATA_VERSION = 1;
+const FLAG_HAS_METADATA = 0x01;
 
 /**
- * Event anchor metadata stored in cell data
+ * Transaction rejection error with chain details
  */
-export interface EventAnchorMetadata {
-  event_id: string;
-  creator_address: string;
-  metadata_hash?: string;
-  created_at_block?: number;
+export class ChainRejectionError extends Error {
+  constructor(
+    message: string,
+    public readonly errorCode?: number,
+    public readonly scriptError?: string
+  ) {
+    super(message);
+    this.name = 'ChainRejectionError';
+  }
+
+  static fromCkbError(err: unknown): ChainRejectionError {
+    const message = err instanceof Error ? err.message : String(err);
+
+    // Parse CKB script errors
+    if (message.includes('ValidationFailure')) {
+      const match = message.match(/error code (\d+)/);
+      const code = match ? parseInt(match[1], 10) : undefined;
+
+      // Map known error codes
+      let reason = 'Transaction rejected by type script';
+      if (code === 1) reason = 'Invalid script args format';
+      if (code === 2) reason = 'Duplicate output detected';
+      if (code === 3) reason = 'Badge/Anchor already exists on-chain';
+
+      return new ChainRejectionError(reason, code, message);
+    }
+
+    return new ChainRejectionError(message);
+  }
 }
 
 @Injectable({
@@ -74,11 +105,9 @@ export interface EventAnchorMetadata {
 export class ContractService {
   private walletService = inject(WalletService);
 
-  // Flag to enable/disable real blockchain transactions
-  private readonly useRealTransactions = false;
-
   /**
-   * SHA256 hash helper using Web Crypto API
+   * SHA256 hash helper using Web Crypto API.
+   * Mirrors the hashing used in contracts.
    */
   private async sha256(data: string): Promise<Uint8Array> {
     const encoder = new TextEncoder();
@@ -88,13 +117,13 @@ export class ContractService {
   }
 
   /**
-   * Build type script args: SHA256(eventId) + SHA256(address) = 64 bytes
+   * Build type script args per contract spec:
+   * SHA256(eventId) || SHA256(address) = 64 bytes
    */
   private async buildArgs(eventId: string, address: string): Promise<string> {
     const eventIdHash = await this.sha256(eventId);
     const addressHash = await this.sha256(address);
 
-    // Concatenate both 32-byte hashes
     const args = new Uint8Array(64);
     args.set(eventIdHash, 0);
     args.set(addressHash, 32);
@@ -103,8 +132,21 @@ export class ContractService {
   }
 
   /**
-   * Convert ContractConfig to CCC script
+   * Build versioned binary cell data.
+   * Format: [ version | flags | content_hash ]
    */
+  private async buildCellData(contentJson: object): Promise<string> {
+    const contentStr = JSON.stringify(contentJson);
+    const contentHash = await this.sha256(contentStr);
+
+    const data = new Uint8Array(34); // 1 + 1 + 32
+    data[0] = DATA_VERSION;
+    data[1] = FLAG_HAS_METADATA;
+    data.set(contentHash, 2);
+
+    return '0x' + Array.from(data).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   private configToScript(config: ContractConfig, args: string): ccc.Script {
     return ccc.Script.from({
       codeHash: config.codeHash,
@@ -113,9 +155,6 @@ export class ContractService {
     });
   }
 
-  /**
-   * Convert ContractConfig to CCC cell dep
-   */
   private configToCellDep(config: ContractConfig): ccc.CellDep {
     return ccc.CellDep.from({
       outPoint: ccc.OutPoint.from({
@@ -128,114 +167,77 @@ export class ContractService {
 
   /**
    * Build a DOB Badge minting transaction.
-   * Creates an immutable badge cell with type script enforcing uniqueness.
+   * Uniqueness is enforced by the TYPE SCRIPT, not this code.
    */
   async buildBadgeMintTx(
     eventId: string,
     eventIssuer: string,
     recipientAddress: string,
     proofHash?: string
-  ): Promise<{ tx: ccc.Transaction; metadata: BadgeMetadata }> {
+  ): Promise<ccc.Transaction> {
     const signer = this.walletService.signer;
     if (!signer) {
       throw new Error('Wallet not connected');
     }
 
-    // Build type script args
     const args = await this.buildArgs(eventId, recipientAddress);
-
-    // Create badge metadata
-    const metadata: BadgeMetadata = {
-      protocol: 'ckb-pop',
-      version: '1',
-      event_id: eventId,
-      issuer: eventIssuer,
-      attendance_proof_hash: proofHash,
-    };
-    const metadataJson = JSON.stringify(metadata);
-    const metadataBytes = new TextEncoder().encode(metadataJson);
-
-    // Build the type script
     const typeScript = this.configToScript(DOB_BADGE_CONFIG, args);
-
-    // Get recipient's lock script
     const recipientLock = (await ccc.Address.fromString(recipientAddress, this.walletService.ckbClient)).script;
 
-    // Build transaction
-    const tx = ccc.Transaction.from({
-      outputs: [
-        {
-          lock: recipientLock,
-          type: typeScript,
-          capacity: MIN_CELL_CAPACITY,
-        },
-      ],
-      outputsData: [
-        '0x' + Array.from(metadataBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
-      ],
+    // Build cell data (hash-only, full metadata stored off-chain)
+    const cellData = await this.buildCellData({
+      protocol: 'ckb-pop',
+      version: 1,
+      event_id: eventId,
+      issuer: eventIssuer,
+      proof_hash: proofHash,
     });
 
-    // Add cell dep for the type script
-    tx.cellDeps.push(this.configToCellDep(DOB_BADGE_CONFIG));
+    const tx = ccc.Transaction.from({
+      outputs: [{ lock: recipientLock, type: typeScript }],
+      outputsData: [cellData],
+    });
 
-    return { tx, metadata };
+    tx.cellDeps.push(this.configToCellDep(DOB_BADGE_CONFIG));
+    return tx;
   }
 
   /**
    * Build an Event Anchor creation transaction.
-   * Creates an immutable anchor cell proving event existence.
+   * Immutability is enforced by the TYPE SCRIPT.
    */
   async buildEventAnchorTx(
     eventId: string,
     creatorAddress: string,
     metadataHash?: string
-  ): Promise<{ tx: ccc.Transaction; metadata: EventAnchorMetadata }> {
+  ): Promise<ccc.Transaction> {
     const signer = this.walletService.signer;
     if (!signer) {
       throw new Error('Wallet not connected');
     }
 
-    // Build type script args
     const args = await this.buildArgs(eventId, creatorAddress);
-
-    // Create anchor metadata
-    const metadata: EventAnchorMetadata = {
-      event_id: eventId,
-      creator_address: creatorAddress,
-      metadata_hash: metadataHash,
-    };
-    const metadataJson = JSON.stringify(metadata);
-    const metadataBytes = new TextEncoder().encode(metadataJson);
-
-    // Build the type script
     const typeScript = this.configToScript(EVENT_ANCHOR_CONFIG, args);
-
-    // Get creator's lock script
     const creatorLock = (await ccc.Address.fromString(creatorAddress, this.walletService.ckbClient)).script;
 
-    // Build transaction
-    const tx = ccc.Transaction.from({
-      outputs: [
-        {
-          lock: creatorLock,
-          type: typeScript,
-          capacity: MIN_CELL_CAPACITY,
-        },
-      ],
-      outputsData: [
-        '0x' + Array.from(metadataBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
-      ],
+    const cellData = await this.buildCellData({
+      event_id: eventId,
+      creator: creatorAddress,
+      metadata_hash: metadataHash,
     });
 
-    // Add cell dep for the type script
-    tx.cellDeps.push(this.configToCellDep(EVENT_ANCHOR_CONFIG));
+    const tx = ccc.Transaction.from({
+      outputs: [{ lock: creatorLock, type: typeScript }],
+      outputsData: [cellData],
+    });
 
-    return { tx, metadata };
+    tx.cellDeps.push(this.configToCellDep(EVENT_ANCHOR_CONFIG));
+    return tx;
   }
 
   /**
    * Mint a DOB badge on-chain.
-   * Returns the transaction hash.
+   * Chain will reject if badge already exists (error code 3).
    */
   async mintBadge(
     eventId: string,
@@ -243,117 +245,111 @@ export class ContractService {
     recipientAddress: string,
     proofHash?: string
   ): Promise<string> {
-    if (!this.useRealTransactions) {
-      // Simulate transaction for now
+    if (!CONTRACTS_DEPLOYED) {
+      // Simulation mode - contracts not yet deployed
       await new Promise(resolve => setTimeout(resolve, 1500));
       return '0x' + Array.from({ length: 64 }, () =>
         Math.floor(Math.random() * 16).toString(16)
       ).join('');
     }
 
-    const { tx } = await this.buildBadgeMintTx(eventId, eventIssuer, recipientAddress, proofHash);
-    return this.walletService.sendTransaction(tx);
+    try {
+      const tx = await this.buildBadgeMintTx(eventId, eventIssuer, recipientAddress, proofHash);
+      return await this.walletService.sendTransaction(tx);
+    } catch (err) {
+      throw ChainRejectionError.fromCkbError(err);
+    }
   }
 
   /**
    * Create an event anchor on-chain.
-   * Returns the transaction hash.
+   * Chain will reject if anchor already exists (error code 3).
    */
   async createEventAnchor(
     eventId: string,
     creatorAddress: string,
     metadataHash?: string
   ): Promise<string> {
-    if (!this.useRealTransactions) {
-      // Simulate transaction for now
+    if (!CONTRACTS_DEPLOYED) {
       await new Promise(resolve => setTimeout(resolve, 1500));
       return '0x' + Array.from({ length: 64 }, () =>
         Math.floor(Math.random() * 16).toString(16)
       ).join('');
     }
 
-    const { tx } = await this.buildEventAnchorTx(eventId, creatorAddress, metadataHash);
-    return this.walletService.sendTransaction(tx);
+    try {
+      const tx = await this.buildEventAnchorTx(eventId, creatorAddress, metadataHash);
+      return await this.walletService.sendTransaction(tx);
+    } catch (err) {
+      throw ChainRejectionError.fromCkbError(err);
+    }
   }
 
   /**
-   * Check if a badge already exists for the given event and recipient.
-   * Queries the chain for cells with matching type script args.
+   * UX HINT ONLY: Check if a badge might already exist.
+   *
+   * WARNING: This is for UI feedback only. Do NOT use for enforcement.
+   * - Indexers lag behind chain tip
+   * - Race conditions are possible
+   * - The TYPE SCRIPT is the source of truth
    */
-  async badgeExists(eventId: string, recipientAddress: string): Promise<boolean> {
-    if (!this.useRealTransactions) {
-      return false; // In simulation mode, always allow minting
-    }
-
-    const args = await this.buildArgs(eventId, recipientAddress);
-    const typeScript = this.configToScript(DOB_BADGE_CONFIG, args);
-
-    const client = this.walletService.ckbClient;
-    const cells = client.findCells({
-      script: typeScript,
-      scriptType: 'type',
-      scriptSearchMode: 'exact',
-    });
-
-    // Check if any cells exist
-    for await (const _ of cells) {
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * Check if an event anchor already exists.
-   */
-  async eventAnchorExists(eventId: string, creatorAddress: string): Promise<boolean> {
-    if (!this.useRealTransactions) {
+  async badgeExistsHint(eventId: string, recipientAddress: string): Promise<boolean> {
+    if (!CONTRACTS_DEPLOYED) {
       return false;
     }
 
-    const args = await this.buildArgs(eventId, creatorAddress);
-    const typeScript = this.configToScript(EVENT_ANCHOR_CONFIG, args);
+    try {
+      const args = await this.buildArgs(eventId, recipientAddress);
+      const typeScript = this.configToScript(DOB_BADGE_CONFIG, args);
 
-    const client = this.walletService.ckbClient;
-    const cells = client.findCells({
-      script: typeScript,
-      scriptType: 'type',
-      scriptSearchMode: 'exact',
-    });
+      const client = this.walletService.ckbClient;
+      const cells = client.findCells({
+        script: typeScript,
+        scriptType: 'type',
+        scriptSearchMode: 'exact',
+      });
 
-    for await (const _ of cells) {
-      return true;
+      for await (const _ of cells) {
+        return true;
+      }
+    } catch {
+      // Indexer errors shouldn't block UX
     }
     return false;
   }
 
   /**
-   * Update contract configuration (for admin/deployment purposes).
-   * In production, these would be loaded from environment or config.
+   * UX HINT ONLY: Check if an event anchor might exist.
    */
-  updateDobBadgeConfig(config: Partial<ContractConfig>): void {
-    Object.assign(DOB_BADGE_CONFIG, config);
-  }
+  async eventAnchorExistsHint(eventId: string, creatorAddress: string): Promise<boolean> {
+    if (!CONTRACTS_DEPLOYED) {
+      return false;
+    }
 
-  updateEventAnchorConfig(config: Partial<ContractConfig>): void {
-    Object.assign(EVENT_ANCHOR_CONFIG, config);
+    try {
+      const args = await this.buildArgs(eventId, creatorAddress);
+      const typeScript = this.configToScript(EVENT_ANCHOR_CONFIG, args);
+
+      const client = this.walletService.ckbClient;
+      const cells = client.findCells({
+        script: typeScript,
+        scriptType: 'type',
+        scriptSearchMode: 'exact',
+      });
+
+      for await (const _ of cells) {
+        return true;
+      }
+    } catch {
+      // Indexer errors shouldn't block UX
+    }
+    return false;
   }
 
   /**
-   * Enable real blockchain transactions.
-   * Only enable after contracts are deployed.
+   * Check if contracts are deployed and ready for real transactions.
    */
-  enableRealTransactions(): void {
-    (this as any).useRealTransactions = true;
-  }
-
-  /**
-   * Get current config (for debugging)
-   */
-  getConfig(): { dobBadge: ContractConfig; eventAnchor: ContractConfig; useRealTransactions: boolean } {
-    return {
-      dobBadge: { ...DOB_BADGE_CONFIG },
-      eventAnchor: { ...EVENT_ANCHOR_CONFIG },
-      useRealTransactions: this.useRealTransactions,
-    };
+  isDeployed(): boolean {
+    return CONTRACTS_DEPLOYED;
   }
 }

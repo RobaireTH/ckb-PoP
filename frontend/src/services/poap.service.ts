@@ -2,7 +2,7 @@ import { Injectable, signal, inject, computed } from '@angular/core';
 import { GoogleGenAI } from "@google/genai";
 import { WalletService } from './wallet.service';
 import { ToastService } from './toast.service';
-import { ContractService } from './contract.service';
+import { ContractService, ChainRejectionError } from './contract.service';
 
 export interface PoPEvent {
   id: string;
@@ -190,13 +190,7 @@ export class PoapService {
   }
 
   async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
-    // Check if badge already exists
-    const exists = await this.contractService.badgeExists(event.id, address);
-    if (exists) {
-      throw new Error('Badge already minted for this event');
-    }
-
-    // Generate AI description
+    // Generate AI description first (non-blocking)
     let aiDesc = "Verified proof of attendance.";
     try {
       const ai = new GoogleGenAI({ apiKey: process.env['API_KEY'] });
@@ -213,11 +207,22 @@ export class PoapService {
     }
 
     // Mint badge on-chain via ContractService
-    const txHash = await this.contractService.mintBadge(
-      event.id,
-      event.issuer,
-      address
-    );
+    // The TYPE SCRIPT enforces uniqueness - if badge exists, chain rejects
+    let txHash: string;
+    try {
+      txHash = await this.contractService.mintBadge(
+        event.id,
+        event.issuer,
+        address
+      );
+    } catch (err) {
+      // Surface chain rejection to user
+      if (err instanceof ChainRejectionError) {
+        this.toast.error(err.message);
+        throw err;
+      }
+      throw err;
+    }
 
     const newBadge: Badge = {
       id: crypto.randomUUID(),
@@ -233,5 +238,13 @@ export class PoapService {
     this.badgesSignal.update(badges => [newBadge, ...badges]);
     this.toast.success(`Badge minted for ${event.name}`);
     return newBadge;
+  }
+
+  /**
+   * UX hint: Check if badge might already exist.
+   * For display purposes only - not enforcement.
+   */
+  async checkBadgeExistsHint(eventId: string, address: string): Promise<boolean> {
+    return this.contractService.badgeExistsHint(eventId, address);
   }
 }
