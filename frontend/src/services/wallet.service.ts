@@ -4,42 +4,32 @@ import { ToastService } from './toast.service';
 
 export type WalletType = string | null;
 
-// SVG icons for mobile wallets (base64 encoded data URIs)
-const IMTOKEN_SVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiByeD0iMjQiIGZpbGw9IiMxMTgzRkUiLz4KPHBhdGggZD0iTTY0IDI0QzQxLjkwOSAyNCAyNCA0MS45MDkgMjQgNjRDMjQgODYuMDkxIDQxLjkwOSAxMDQgNjQgMTA0Qzg2LjA5MSAxMDQgMTA0IDg2LjA5MSAxMDQgNjRDMTA0IDQxLjkwOSA4Ni4wOTEgMjQgNjQgMjRaTTY0IDM2QzYwLjY4NiAzNiA1OCAzOC42ODYgNTggNDJDNTggNDUuMzE0IDYwLjY4NiA0OCA2NCA0OEM2Ny4zMTQgNDggNzAgNDUuMzE0IDcwIDQyQzcwIDM4LjY4NiA2Ny4zMTQgMzYgNjQgMzZaTTU2IDU2SDcyVjkySDU2VjU2WiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+';
+// Suggested wallets with install URLs
+const WALLET_INSTALL_URLS: Record<string, string> = {
+  'joyid': 'https://joy.id',
+  'metamask': 'https://metamask.io/download/',
+  'unisat': 'https://unisat.io/download',
+  'okx': 'https://www.okx.com/web3',
+};
 
-const SAFEPAL_SVG = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiByeD0iMjQiIGZpbGw9IiM1QjVFRkYiLz4KPHBhdGggZD0iTTY0IDIwTDEwMCA0MFY2MEMxMDAgODQuNTMzIDg1LjMzMyAxMDAgNjQgMTA4QzQyLjY2NyAxMDAgMjggODQuNTMzIDI4IDYwVjQwTDY0IDIwWiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSI2IiBmaWxsPSJub25lIi8+CjxwYXRoIGQ9Ik01MiA2NEw2MCA3Mkw3NiA1NiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+';
+// Wallet icons via Google Favicon API
+const WALLET_ICONS: Record<string, string> = {
+  'joyid': 'https://www.google.com/s2/favicons?domain=joy.id&sz=128',
+  'metamask': 'https://www.google.com/s2/favicons?domain=metamask.io&sz=128',
+  'unisat': 'https://www.google.com/s2/favicons?domain=unisat.io&sz=128',
+  'okx': 'https://www.google.com/s2/favicons?domain=okx.com&sz=128',
+};
 
 /**
- * Custom SignersController that extends the default CCC SignersController
- * to add support for additional mobile wallets (imToken, SafePal)
+ * Custom SignersController that only shows real installed wallets
  */
 class CustomSignersController extends ccc.SignersController {
   async addRealSigners(context: ccc.SignersControllerRefreshContext): Promise<void> {
-    // Call the parent implementation to add all default wallets
     await super.addRealSigners(context);
   }
 
-  async addDummySigners(context: ccc.SignersControllerRefreshContext): Promise<void> {
-    // Call the parent implementation to add default dummy signers
-    await super.addDummySigners(context);
-
-    // Add imToken mobile deep link
-    await this.addLinkSigners(
-      'imToken',
-      IMTOKEN_SVG,
-      [ccc.SignerType.EVM],
-      `imtokenv2://navigate/DappView?url=${encodeURIComponent(window.location.href)}`,
-      context
-    );
-
-    // Add SafePal mobile deep link
-    await this.addLinkSigners(
-      'SafePal',
-      SAFEPAL_SVG,
-      [ccc.SignerType.EVM],
-      `https://link.safepal.io/dapp?url=${encodeURIComponent(window.location.href)}`,
-      context
-    );
+  async addDummySigners(_context: ccc.SignersControllerRefreshContext): Promise<void> {
+    // Don't add dummy signers - we handle suggestions separately
   }
 }
 
@@ -51,6 +41,13 @@ export interface WalletOption {
   signerType: ccc.SignerType;
 }
 
+// Wallet suggestion for uninstalled wallets
+export interface WalletSuggestion {
+  name: string;
+  icon: string;
+  installUrl: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -60,7 +57,7 @@ export class WalletService {
   // CKB Client - using testnet for development
   private client = new ccc.ClientPublicTestnet();
 
-  // Custom signers controller for wallet discovery (extends default with imToken & SafePal)
+  // Custom signers controller for wallet discovery
   private signersController = new CustomSignersController();
 
   // Internal state
@@ -91,6 +88,27 @@ export class WalletService {
       }
     }
     return options;
+  });
+
+  // Wallet suggestions for wallets that aren't installed
+  readonly walletSuggestions = computed<WalletSuggestion[]>(() => {
+    const installedNames = this.walletOptions().map(w => w.name.toLowerCase());
+    const suggestions: WalletSuggestion[] = [];
+
+    for (const [key, installUrl] of Object.entries(WALLET_INSTALL_URLS)) {
+      // Check if this wallet is already installed (exact match or contains)
+      const isInstalled = installedNames.some(name =>
+        name === key || name.includes(key) || key.includes(name)
+      );
+      if (!isInstalled) {
+        suggestions.push({
+          name: key === 'joyid' ? 'JoyID' : key === 'okx' ? 'OKX Wallet' : key === 'metamask' ? 'MetaMask' : key === 'unisat' ? 'UniSat' : key,
+          icon: WALLET_ICONS[key] || '',
+          installUrl
+        });
+      }
+    }
+    return suggestions;
   });
 
   readonly isConnected = computed(() => this.signerSignal() !== null);

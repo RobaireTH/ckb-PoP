@@ -1,6 +1,6 @@
 import { Component, output, inject, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { WalletService, WalletOption } from '../../services/wallet.service';
+import { WalletService, WalletOption, WalletSuggestion } from '../../services/wallet.service';
 import { ccc } from '@ckb-ccc/ccc';
 
 @Component({
@@ -21,7 +21,7 @@ import { ccc } from '@ckb-ccc/ccc';
       <!-- Modal -->
       <div
         #modalPanel
-        class="relative w-full max-w-xs bg-zinc-950 border border-zinc-800/50 rounded-2xl overflow-hidden shadow-2xl shadow-black/50"
+        class="relative w-full max-w-xs bg-zinc-950 border border-zinc-800/50 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 max-h-[80vh] overflow-y-auto"
         tabindex="-1"
       >
         <!-- Header -->
@@ -42,43 +42,71 @@ import { ccc } from '@ckb-ccc/ccc';
         <!-- Wallet List -->
         @if (!walletService.isConnecting()) {
           <div class="px-4 pb-4">
-            <div class="space-y-2">
-              @for (wallet of walletService.walletOptions(); track wallet.name) {
-                <button
-                  (click)="selectWallet(wallet)"
-                  class="w-full flex items-center gap-4 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800/50 hover:border-zinc-700/50 transition-all duration-200 group"
-                >
-                  <!-- Wallet Icon -->
-                  <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
-                    @if (wallet.icon) {
-                      <img [src]="wallet.icon" class="w-8 h-8 object-contain" [alt]="wallet.name">
-                    } @else {
-                      <span class="text-xl font-bold text-zinc-500">{{ wallet.name.charAt(0) }}</span>
-                    }
-                  </div>
-
-                  <!-- Wallet Info -->
-                  <div class="flex-1 text-left">
-                    <div class="text-sm font-medium text-white group-hover:text-lime-400 transition-colors">{{ wallet.name }}</div>
-                  </div>
-
-                  <!-- Arrow -->
-                  <svg class="w-5 h-5 text-zinc-600 group-hover:text-zinc-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              } @empty {
-                <div class="py-8 text-center">
-                  <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-zinc-900 flex items-center justify-center">
-                    <svg class="w-8 h-8 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+            <!-- Installed Wallets -->
+            @if (walletService.walletOptions().length > 0) {
+              <div class="flex items-center gap-3 mb-3">
+                <div class="flex-1 h-px bg-zinc-800"></div>
+                <span class="text-[10px] text-zinc-500 uppercase tracking-wider">Installed</span>
+                <div class="flex-1 h-px bg-zinc-800"></div>
+              </div>
+              <div class="space-y-2 mb-4">
+                @for (wallet of walletService.walletOptions(); track wallet.name) {
+                  <button
+                    (click)="selectWallet(wallet)"
+                    class="w-full flex items-center gap-4 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800/50 hover:border-lime-400/30 transition-all duration-200 group"
+                  >
+                    <div class="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                      @if (wallet.icon) {
+                        <img [src]="wallet.icon" class="w-8 h-8 object-contain" [alt]="wallet.name">
+                      } @else {
+                        <span class="text-xl font-bold text-zinc-500">{{ wallet.name.charAt(0) }}</span>
+                      }
+                    </div>
+                    <div class="flex-1 text-left">
+                      <div class="text-sm font-medium text-white group-hover:text-lime-400 transition-colors">{{ wallet.name }}</div>
+                    </div>
+                    <svg class="w-5 h-5 text-zinc-600 group-hover:text-lime-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                     </svg>
-                  </div>
-                  <p class="text-sm text-zinc-400 mb-1">No wallets detected</p>
-                  <p class="text-xs text-zinc-600">Install a CKB-compatible wallet</p>
-                </div>
-              }
-            </div>
+                  </button>
+                }
+              </div>
+            }
+
+            <!-- Suggestions Divider -->
+            @if (walletService.walletSuggestions().length > 0) {
+              <div class="flex items-center gap-3 my-4">
+                <div class="flex-1 h-px bg-zinc-800"></div>
+                <span class="text-[10px] text-zinc-600 uppercase tracking-wider">Or get a wallet</span>
+                <div class="flex-1 h-px bg-zinc-800"></div>
+              </div>
+
+              <!-- Wallet Suggestions -->
+              <div class="space-y-2">
+                @for (suggestion of walletService.walletSuggestions(); track suggestion.name) {
+                  <a
+                    [href]="suggestion.installUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="w-full flex items-center gap-4 p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/30 hover:bg-zinc-900/50 hover:border-zinc-700/50 transition-all duration-200 group"
+                  >
+                    <div class="w-12 h-12 rounded-xl bg-zinc-800/50 flex items-center justify-center overflow-hidden shrink-0">
+                      @if (suggestion.icon) {
+                        <img [src]="suggestion.icon" class="w-8 h-8 object-contain opacity-60 group-hover:opacity-100 transition-opacity" [alt]="suggestion.name">
+                      } @else {
+                        <span class="text-xl font-bold text-zinc-600">{{ suggestion.name.charAt(0) }}</span>
+                      }
+                    </div>
+                    <div class="flex-1 text-left">
+                      <div class="text-sm font-medium text-zinc-400 group-hover:text-zinc-200 transition-colors">{{ suggestion.name }}</div>
+                    </div>
+                    <svg class="w-4 h-4 text-zinc-700 group-hover:text-zinc-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                }
+              </div>
+            }
           </div>
         } @else {
           <div class="px-4 pb-4">
@@ -125,23 +153,6 @@ export class WalletModalComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy() {
     if (this.previousActiveElement instanceof HTMLElement) {
       this.previousActiveElement.focus();
-    }
-  }
-
-  getSignerTypeLabel(type: ccc.SignerType): string {
-    switch (type) {
-      case ccc.SignerType.BTC:
-        return 'Bitcoin';
-      case ccc.SignerType.EVM:
-        return 'Ethereum';
-      case ccc.SignerType.CKB:
-        return 'CKB Native';
-      case ccc.SignerType.Nostr:
-        return 'Nostr';
-      case ccc.SignerType.Doge:
-        return 'Dogecoin';
-      default:
-        return 'Unknown';
     }
   }
 
