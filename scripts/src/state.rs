@@ -1,28 +1,26 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-use tokio::sync::RwLock;
+use std::sync::Arc;
 
-use crate::challenge::Challenge;
+use crate::cache::Cache;
+use crate::rpc::CkbRpcClient;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub inner: Arc<AppStateInner>,
-}
-
-pub struct AppStateInner {
-    pub challenges: RwLock<HashMap<String, Challenge>>,
-    pub attended: RwLock<HashMap<String, HashSet<String>>>,
+    pub cache: Arc<Cache>,
+    pub rpc: Arc<CkbRpcClient>,
 }
 
 impl AppState {
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(AppStateInner {
-                challenges: RwLock::new(HashMap::new()),
-                attended: RwLock::new(HashMap::new()),
-            }),
-        }
+    pub async fn new(database_url: &str, ckb_rpc_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let cache = Cache::new(database_url).await?;
+        let rpc = CkbRpcClient::new(ckb_rpc_url);
+
+        Ok(Self {
+            cache: Arc::new(cache),
+            rpc: Arc::new(rpc),
+        })
+    }
+
+    pub async fn new_testnet(database_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        Self::new(database_url, "https://testnet.ckb.dev/rpc").await
     }
 }

@@ -1,7 +1,11 @@
-mod challenge;
-mod error;
+mod cache;
+mod crypto;
+mod observe;
+mod relay;
 mod routes;
+mod rpc;
 mod state;
+mod types;
 
 use axum::Router;
 use std::net::SocketAddr;
@@ -17,7 +21,14 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let state = AppState::new();
+    dotenvy::dotenv().ok();
+
+    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:ckb_pop.db".to_string());
+    let ckb_rpc_url = std::env::var("CKB_RPC_URL").unwrap_or_else(|_| "https://testnet.ckb.dev/rpc".to_string());
+
+    let state = AppState::new(&database_url, &ckb_rpc_url)
+        .await
+        .expect("Failed to initialize app state");
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
