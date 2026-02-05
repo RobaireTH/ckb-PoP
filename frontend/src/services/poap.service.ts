@@ -126,19 +126,23 @@ export class PoapService {
   }
 
   async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
-    // Generate event ID
-    const eventId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Generate event ID using cryptographically secure randomness (8 hex characters)
+    const eventId = Array.from(crypto.getRandomValues(new Uint8Array(4)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('').toUpperCase();
 
     // Create event anchor on-chain (optional but strengthens decentralization)
     let anchorTxHash: string | undefined;
     try {
       // Hash of event metadata for on-chain reference
-      const metadataJson = JSON.stringify({
+      // Normalize metadata to ensure deterministic hashing (description defaults to empty string)
+      const normalizedMetadata = {
         name: eventData.name,
         date: eventData.date,
         location: eventData.location,
-        description: eventData.description,
-      });
+        description: eventData.description ?? '',
+      };
+      const metadataJson = JSON.stringify(normalizedMetadata);
       const encoder = new TextEncoder();
       const metadataBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(metadataJson));
       const metadataHash = '0x' + Array.from(new Uint8Array(metadataBuffer))
@@ -151,7 +155,10 @@ export class PoapService {
       );
     } catch (e) {
       console.warn("Event anchor creation failed (non-critical):", e);
-      // Continue without anchor - events can still work without on-chain anchor
+      this.toast.warning(
+        `Event "${eventData.name}" was created, but on-chain anchoring failed. ` +
+        `The event will work, but without blockchain verification.`
+      );
     }
 
     const newEvent: PoPEvent = {
@@ -170,7 +177,7 @@ export class PoapService {
     if (anchorTxHash) {
       this.toast.success(`Event anchored on-chain: ${newEvent.name}`);
     } else {
-      this.toast.success(`Event created: ${newEvent.name}`);
+      this.toast.info(`Event created without on-chain anchor: ${newEvent.name}`);
     }
 
     return newEvent;

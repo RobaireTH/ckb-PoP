@@ -32,7 +32,7 @@ const ARGS_LEN: usize = 64;
 mod error {
     /// Script args length != 64 bytes
     pub const INVALID_ARGS: i8 = 1;
-    /// Multiple outputs with same type script args
+    /// Multiple outputs with same type script (code_hash + args)
     pub const DUPLICATE_OUTPUT: i8 = 2;
     /// Anchor already exists (re-creation attempt)
     pub const ALREADY_EXISTS: i8 = 3;
@@ -60,7 +60,7 @@ fn validate() -> Result<(), i8> {
     // Count outputs with same type script (code_hash + args)
     let output_count = count_matching_cells(Source::Output, &code_hash, &args);
 
-    // Exactly one anchor per event per transaction
+    // Require exactly one output matching this anchor (prevents duplication and destruction)
     if output_count != 1 {
         return Err(error::DUPLICATE_OUTPUT);
     }

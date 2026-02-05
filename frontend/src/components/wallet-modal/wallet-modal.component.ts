@@ -1,7 +1,6 @@
 import { Component, output, inject, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { WalletService, WalletOption, WalletSuggestion } from '../../services/wallet.service';
-import { ccc } from '@ckb-ccc/ccc';
+import { WalletService, WalletOption } from '../../services/wallet.service';
 
 @Component({
   selector: 'app-wallet-modal',
@@ -88,6 +87,7 @@ import { ccc } from '@ckb-ccc/ccc';
                     [href]="suggestion.installUrl"
                     target="_blank"
                     rel="noopener noreferrer"
+                    [attr.aria-label]="'Install ' + suggestion.name"
                     class="w-full flex items-center gap-4 p-4 rounded-xl bg-zinc-900/30 border border-zinc-800/30 hover:bg-zinc-900/50 hover:border-zinc-700/50 transition-all duration-200 group"
                   >
                     <div class="w-12 h-12 rounded-xl bg-zinc-800/50 flex items-center justify-center overflow-hidden shrink-0">
@@ -105,6 +105,16 @@ import { ccc } from '@ckb-ccc/ccc';
                     </svg>
                   </a>
                 }
+              </div>
+            } @else if (walletService.walletOptions().length === 0) {
+              <!-- Empty state when no wallets are installed and no suggestions are available -->
+              <div class="mt-6 rounded-xl border border-dashed border-zinc-800/60 bg-zinc-900/30 px-4 py-6 text-center">
+                <p class="text-sm font-medium text-zinc-300">
+                  No compatible wallets detected
+                </p>
+                <p class="mt-2 text-xs text-zinc-500">
+                  Install a wallet browser extension (such as a CKB-compatible wallet) and refresh this page to connect.
+                </p>
               </div>
             }
           </div>
