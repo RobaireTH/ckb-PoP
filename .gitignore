@@ -1,0 +1,16 @@
+# Build artifacts
+contracts/target/
+contracts/Cargo.lock
+
+# Node modules
+frontend/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
