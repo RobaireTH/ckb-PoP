@@ -63,6 +63,15 @@ pub async fn verify_attendance_proof(
         return Err(RelayError::QrExpired);
     }
 
+    // Verify attendee's CKB signature over the attendance message
+    let message = proof.signed_message();
+    signatures::verify_ckb_address_signature(
+        &message,
+        &proof.attendee_signature,
+        &proof.attendee_address,
+    )
+    .map_err(|_| RelayError::InvalidSignature)?;
+
     if cache
         .check_qr_replay(&proof.event_id, proof.qr_payload.timestamp)
         .await
