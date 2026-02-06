@@ -48,14 +48,32 @@ export interface WalletSuggestion {
   installUrl: string;
 }
 
+// Select CKB client based on VITE_CKB_NETWORK environment variable
+function createCkbClient(): ccc.Client {
+  const network = import.meta.env?.VITE_CKB_NETWORK || 'testnet';
+  switch (network) {
+    case 'mainnet':
+      return new ccc.ClientPublicMainnet();
+    case 'devnet': {
+      const rpcUrl = import.meta.env?.VITE_CKB_RPC_URL || 'http://localhost:8114';
+      return new ccc.ClientPublicTestnet({ url: rpcUrl });
+    }
+    case 'testnet':
+    default:
+      return new ccc.ClientPublicTestnet();
+  }
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class WalletService {
   private toast = inject(ToastService);
 
-  // CKB Client - using testnet for development
-  private client = new ccc.ClientPublicTestnet();
+  // CKB Client — network selected via VITE_CKB_NETWORK env var
+  private client = createCkbClient();
+
+  readonly network = import.meta.env?.VITE_CKB_NETWORK || 'testnet';
 
   // Custom signers controller for wallet discovery
   private signersController = new CustomSignersController();
