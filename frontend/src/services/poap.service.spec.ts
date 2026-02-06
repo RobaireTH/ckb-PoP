@@ -86,7 +86,7 @@ describe('PoapService QR Logic', () => {
 
 describe('Badge interface', () => {
   it('should accept blockNumber as optional field', () => {
-    const badge = {
+    const badge: { blockNumber?: number; [key: string]: unknown } = {
       id: '1',
       eventId: 'evt1',
       eventName: 'Test',
@@ -97,8 +97,8 @@ describe('Badge interface', () => {
     };
     expect(badge.blockNumber).toBeUndefined();
 
-    const badgeWithBlock = { ...badge, blockNumber: 12345 };
-    expect(badgeWithBlock.blockNumber).toBe(12345);
+    badge.blockNumber = 12345;
+    expect(badge.blockNumber).toBe(12345);
   });
 });
 
