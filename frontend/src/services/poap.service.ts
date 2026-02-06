@@ -40,18 +40,7 @@ export class PoapService {
   private toast = inject(ToastService);
   private contractService = inject(ContractService);
 
-  private readonly badgesSignal = signal<Badge[]>([
-    {
-      id: '1',
-      eventId: 'evt_001',
-      eventName: 'CKB Community Meetup',
-      mintDate: new Date('2023-10-15').toISOString(),
-      txHash: '0x74d...3f2a',
-      imageUrl: 'https://picsum.photos/seed/ckb1/400/400',
-      aiDescription: 'A token of early adoption in the nervous network ecosystem.',
-      role: 'Attendee'
-    }
-  ]);
+  private readonly badgesSignal = signal<Badge[]>([]);
 
   // Store created events in memory
   private readonly eventsSignal = signal<PoPEvent[]>([]);
@@ -176,17 +165,21 @@ export class PoapService {
     return newEvent;
   }
 
+  private readonly backendUrl = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+
   async getAttendees(eventId: string): Promise<Attendee[]> {
-    // Simulate fetching attendees
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Generate 3-8 random attendees
-    const count = Math.floor(Math.random() * 5) + 3;
-    return Array.from({length: count}, (_, i) => ({
-      address: 'ckb1' + Math.random().toString(36).substring(2, 15) + '...',
-      mintDate: new Date(Date.now() - Math.random() * 10000000).toISOString(),
-      txHash: '0x' + Math.random().toString(16).substring(2, 10) + '...'
-    }));
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${eventId}/badge-holders`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.badges || []).map((b: { holder_address: string; observed_at: string; mint_tx_hash: string }) => ({
+        address: b.holder_address,
+        mintDate: b.observed_at,
+        txHash: b.mint_tx_hash,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
