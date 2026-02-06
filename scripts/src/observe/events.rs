@@ -146,3 +146,136 @@ pub enum ObserveError {
     #[error("rpc error: {0}")]
     Rpc(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    async fn test_cache() -> Cache {
+        Cache::new("sqlite::memory:").await.unwrap()
+    }
+
+    fn test_rpc() -> CkbRpcClient {
+        CkbRpcClient::new("http://localhost:1")
+    }
+
+    fn test_metadata() -> EventMetadata {
+        EventMetadata {
+            name: "Test".to_string(),
+            description: "Desc".to_string(),
+            image_url: None,
+            location: None,
+            start_time: None,
+            end_time: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_observe_events_empty() {
+        let cache = test_cache().await;
+        let rpc = test_rpc();
+        let result = observe_events(&cache, &rpc, false).await.unwrap();
+        assert!(result.events.is_empty());
+        assert!(result.cached);
+    }
+
+    #[tokio::test]
+    async fn test_observe_events_returns_stored() {
+        let cache = test_cache().await;
+        let rpc = test_rpc();
+
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 100,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let result = observe_events(&cache, &rpc, false).await.unwrap();
+        assert_eq!(result.events.len(), 1);
+        assert_eq!(result.events[0].event_id, "evt1");
+    }
+
+    #[tokio::test]
+    async fn test_observe_event_not_found() {
+        let cache = test_cache().await;
+        let rpc = test_rpc();
+        let result = observe_event(&cache, &rpc, "nonexistent", false).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_observe_event_found() {
+        let cache = test_cache().await;
+        let rpc = test_rpc();
+
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 100,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let result = observe_event(&cache, &rpc, "evt1", false).await.unwrap();
+        assert_eq!(result.event.event_id, "evt1");
+        assert!(result.cached);
+        assert!(result.verified_at_block.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_submit_payment_intent() {
+        let cache = test_cache().await;
+        let intent = PaymentIntent {
+            event_id_preimage: crate::types::EventIdPreimage {
+                creator_address: "ckt1q".to_string(),
+                timestamp: 1700000000,
+                nonce: "n1".to_string(),
+            },
+            creator_address: "ckt1q".to_string(),
+            creator_signature: "sig".to_string(),
+            event_metadata: test_metadata(),
+            declared_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::hours(24),
+        };
+
+        let event_id = submit_payment_intent(&cache, intent).await.unwrap();
+        assert_eq!(event_id.len(), 64); // SHA256 hex
+    }
+
+    #[tokio::test]
+    async fn test_update_window() {
+        let cache = test_cache().await;
+
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 100,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let window = WindowProof {
+            event_id: "evt1".to_string(),
+            window_start: Utc::now().timestamp(),
+            window_end: None,
+            creator_signature: "sig".to_string(),
+            window_secret_commitment: "commit".to_string(),
+        };
+        update_window(&cache, "evt1", window).await.unwrap();
+
+        let loaded = cache.get_active_event("evt1").await.unwrap().unwrap();
+        assert!(loaded.window.is_some());
+    }
+}

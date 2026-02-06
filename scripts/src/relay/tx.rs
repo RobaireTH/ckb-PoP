@@ -149,3 +149,153 @@ pub enum RelayError {
     #[error("rpc error: {0}")]
     Rpc(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cache::Cache;
+    use crate::crypto::qr;
+    use crate::types::*;
+    use chrono::Utc;
+
+    async fn test_cache() -> Cache {
+        Cache::new("sqlite::memory:").await.unwrap()
+    }
+
+    fn test_rpc() -> CkbRpcClient {
+        CkbRpcClient::new("http://localhost:1")
+    }
+
+    async fn setup_event_with_window(cache: &Cache) -> (String, WindowProof) {
+        let now = Utc::now().timestamp();
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: EventMetadata {
+                name: "Test".to_string(),
+                description: "Desc".to_string(),
+                image_url: None,
+                location: None,
+                start_time: None,
+                end_time: None,
+            },
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 100,
+            activated_at: Utc::now(),
+            window: Some(WindowProof {
+                event_id: "evt1".to_string(),
+                window_start: now - 3600,
+                window_end: Some(now + 3600),
+                creator_signature: "0xcreator_sig".to_string(),
+                window_secret_commitment: "commit".to_string(),
+            }),
+        };
+        let window = event.window.clone().unwrap();
+        cache.store_active_event(&event).await.unwrap();
+        ("evt1".to_string(), window)
+    }
+
+    #[tokio::test]
+    async fn test_verify_attendance_proof_event_not_found() {
+        let cache = test_cache().await;
+        let proof = AttendanceProof {
+            event_id: "nonexistent".to_string(),
+            attendee_address: "addr".to_string(),
+            qr_payload: QrPayload { event_id: "nonexistent".to_string(), timestamp: 0, hmac: "".to_string() },
+            attendee_signature: "sig".to_string(),
+            created_at: 0,
+        };
+        let result = verify_attendance_proof(&cache, &proof).await;
+        assert!(matches!(result, Err(RelayError::EventNotFound)));
+    }
+
+    #[tokio::test]
+    async fn test_verify_attendance_proof_window_not_open() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: EventMetadata {
+                name: "T".to_string(), description: "D".to_string(),
+                image_url: None, location: None, start_time: None, end_time: None,
+            },
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 100,
+            activated_at: Utc::now(),
+            window: None, // no window
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let proof = AttendanceProof {
+            event_id: "evt1".to_string(),
+            attendee_address: "addr".to_string(),
+            qr_payload: QrPayload { event_id: "evt1".to_string(), timestamp: 0, hmac: "".to_string() },
+            attendee_signature: "sig".to_string(),
+            created_at: 0,
+        };
+        let result = verify_attendance_proof(&cache, &proof).await;
+        assert!(matches!(result, Err(RelayError::WindowNotOpen)));
+    }
+
+    #[tokio::test]
+    async fn test_verify_attendance_proof_invalid_hmac() {
+        let cache = test_cache().await;
+        setup_event_with_window(&cache).await;
+
+        let proof = AttendanceProof {
+            event_id: "evt1".to_string(),
+            attendee_address: "addr".to_string(),
+            qr_payload: QrPayload {
+                event_id: "evt1".to_string(),
+                timestamp: Utc::now().timestamp(),
+                hmac: "badhmacinvalid00".to_string(),
+            },
+            attendee_signature: "sig".to_string(),
+            created_at: Utc::now().timestamp(),
+        };
+        let result = verify_attendance_proof(&cache, &proof).await;
+        assert!(matches!(result, Err(RelayError::InvalidQrHmac)));
+    }
+
+    #[tokio::test]
+    async fn test_verify_attendance_proof_qr_expired() {
+        let cache = test_cache().await;
+        let (_, window) = setup_event_with_window(&cache).await;
+
+        let window_secret = qr::derive_window_secret("evt1", window.window_start, &window.creator_signature);
+        let old_ts = Utc::now().timestamp() - 120; // 2 min ago, beyond TTL
+        let hmac = qr::generate_qr_hmac(&window_secret, old_ts);
+
+        let proof = AttendanceProof {
+            event_id: "evt1".to_string(),
+            attendee_address: "addr".to_string(),
+            qr_payload: QrPayload {
+                event_id: "evt1".to_string(),
+                timestamp: old_ts,
+                hmac,
+            },
+            attendee_signature: "sig".to_string(),
+            created_at: Utc::now().timestamp(),
+        };
+        let result = verify_attendance_proof(&cache, &proof).await;
+        assert!(matches!(result, Err(RelayError::QrExpired)));
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_tx_returns_hash() {
+        let rpc = test_rpc();
+        let result = broadcast_tx(&rpc, BroadcastRequest {
+            signed_tx: "some_signed_tx_data".to_string(),
+        }).await.unwrap();
+        assert!(result.tx_hash.starts_with("0x"));
+        assert_eq!(result.status, "submitted");
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_tx_deterministic() {
+        let rpc = test_rpc();
+        let r1 = broadcast_tx(&rpc, BroadcastRequest { signed_tx: "tx_data".to_string() }).await.unwrap();
+        let r2 = broadcast_tx(&rpc, BroadcastRequest { signed_tx: "tx_data".to_string() }).await.unwrap();
+        assert_eq!(r1.tx_hash, r2.tx_hash);
+    }
+}
