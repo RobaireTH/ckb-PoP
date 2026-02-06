@@ -311,3 +311,268 @@ impl Cache {
         sqlx::query("SELECT 1").fetch_one(&self.pool).await.is_ok()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::*;
+
+    async fn test_cache() -> Cache {
+        Cache::new("sqlite::memory:").await.expect("in-memory cache")
+    }
+
+    fn test_metadata() -> EventMetadata {
+        EventMetadata {
+            name: "Test Event".to_string(),
+            description: "A test event".to_string(),
+            image_url: None,
+            location: Some("NYC".to_string()),
+            start_time: None,
+            end_time: None,
+        }
+    }
+
+    fn test_preimage() -> EventIdPreimage {
+        EventIdPreimage {
+            creator_address: "ckt1qaddr".to_string(),
+            timestamp: 1700000000,
+            nonce: "test_nonce".to_string(),
+        }
+    }
+
+    fn test_intent() -> PaymentIntent {
+        PaymentIntent {
+            event_id_preimage: test_preimage(),
+            creator_address: "ckt1qaddr".to_string(),
+            creator_signature: "0xsig".to_string(),
+            event_metadata: test_metadata(),
+            declared_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::hours(24),
+        }
+    }
+
+    // --- Health ---
+
+    #[tokio::test]
+    async fn test_cache_is_available() {
+        let cache = test_cache().await;
+        assert!(cache.is_available().await);
+    }
+
+    // --- Payment Intents ---
+
+    #[tokio::test]
+    async fn test_store_and_get_payment_intent() {
+        let cache = test_cache().await;
+        let intent = test_intent();
+        let event_id = intent.event_id_preimage.compute_event_id();
+
+        cache.store_payment_intent(&intent).await.unwrap();
+        let loaded = cache.get_payment_intent(&event_id).await.unwrap();
+        assert!(loaded.is_some());
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.creator_address, "ckt1qaddr");
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_intent() {
+        let cache = test_cache().await;
+        let loaded = cache.get_payment_intent("nonexistent").await.unwrap();
+        assert!(loaded.is_none());
+    }
+
+    // --- Payment Observations ---
+
+    #[tokio::test]
+    async fn test_store_and_get_payment_observation() {
+        let cache = test_cache().await;
+        let obs = PaymentObservation {
+            event_id: "evt1".to_string(),
+            payment_tx_hash: "0xtx1".to_string(),
+            payment_block_number: 100,
+            observed_at: Utc::now(),
+        };
+
+        cache.store_payment_observation(&obs).await.unwrap();
+        let loaded = cache.get_payment_observation("evt1").await.unwrap();
+        assert!(loaded.is_some());
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.payment_block_number, 100);
+        assert_eq!(loaded.payment_tx_hash, "0xtx1");
+    }
+
+    // --- Active Events ---
+
+    #[tokio::test]
+    async fn test_store_and_get_active_event() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 200,
+            activated_at: Utc::now(),
+            window: None,
+        };
+
+        cache.store_active_event(&event).await.unwrap();
+        let loaded = cache.get_active_event("evt1").await.unwrap();
+        assert!(loaded.is_some());
+        let loaded = loaded.unwrap();
+        assert_eq!(loaded.metadata.name, "Test Event");
+        assert!(loaded.window.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_list_active_events() {
+        let cache = test_cache().await;
+
+        for i in 0..3 {
+            let event = ActiveEvent {
+                event_id: format!("evt{}", i),
+                metadata: test_metadata(),
+                creator_address: "ckt1q".to_string(),
+                payment_tx_hash: format!("0xtx{}", i),
+                payment_block_number: 100 + i as u64,
+                activated_at: Utc::now(),
+                window: None,
+            };
+            cache.store_active_event(&event).await.unwrap();
+        }
+
+        let events = cache.list_active_events().await.unwrap();
+        assert_eq!(events.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_update_event_window() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "evt1".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 200,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let window = WindowProof {
+            event_id: "evt1".to_string(),
+            window_start: Utc::now().timestamp(),
+            window_end: None,
+            creator_signature: "0xsig".to_string(),
+            window_secret_commitment: "commit".to_string(),
+        };
+        cache.update_event_window("evt1", &window).await.unwrap();
+
+        let loaded = cache.get_active_event("evt1").await.unwrap().unwrap();
+        assert!(loaded.window.is_some());
+        assert_eq!(loaded.window.unwrap().creator_signature, "0xsig");
+    }
+
+    // --- Badge Observations ---
+
+    #[tokio::test]
+    async fn test_store_and_get_badges_by_address() {
+        let cache = test_cache().await;
+        let badge = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "ckt1qholder".to_string(),
+            mint_tx_hash: "0xminttx".to_string(),
+            mint_block_number: 300,
+            verified_at_block: 301,
+            observed_at: Utc::now(),
+        };
+
+        cache.store_badge_observation(&badge).await.unwrap();
+        let badges = cache.get_badges_by_address("ckt1qholder").await.unwrap();
+        assert_eq!(badges.len(), 1);
+        assert_eq!(badges[0].mint_block_number, 300);
+    }
+
+    #[tokio::test]
+    async fn test_get_badges_by_event() {
+        let cache = test_cache().await;
+        for i in 0..3 {
+            let badge = BadgeObservation {
+                event_id: "evt1".to_string(),
+                holder_address: format!("addr{}", i),
+                mint_tx_hash: format!("0xtx{}", i),
+                mint_block_number: 300 + i as u64,
+                verified_at_block: 301,
+                observed_at: Utc::now(),
+            };
+            cache.store_badge_observation(&badge).await.unwrap();
+        }
+
+        let badges = cache.get_badges_by_event("evt1").await.unwrap();
+        assert_eq!(badges.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_badge_uniqueness_by_event_and_address() {
+        let cache = test_cache().await;
+        let badge = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr1".to_string(),
+            mint_tx_hash: "0xtx1".to_string(),
+            mint_block_number: 300,
+            verified_at_block: 301,
+            observed_at: Utc::now(),
+        };
+        cache.store_badge_observation(&badge).await.unwrap();
+
+        // Store again with updated tx_hash — should replace (PRIMARY KEY)
+        let badge2 = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr1".to_string(),
+            mint_tx_hash: "0xtx2_updated".to_string(),
+            mint_block_number: 305,
+            verified_at_block: 306,
+            observed_at: Utc::now(),
+        };
+        cache.store_badge_observation(&badge2).await.unwrap();
+
+        let badges = cache.get_badges_by_event("evt1").await.unwrap();
+        assert_eq!(badges.len(), 1);
+        assert_eq!(badges[0].mint_tx_hash, "0xtx2_updated");
+    }
+
+    // --- QR Replay ---
+
+    #[tokio::test]
+    async fn test_qr_replay_detection() {
+        let cache = test_cache().await;
+        let event_id = "evt1";
+        let timestamp = 1700000000i64;
+
+        assert!(!cache.check_qr_replay(event_id, timestamp).await.unwrap());
+
+        cache.record_qr_usage(event_id, timestamp).await.unwrap();
+
+        assert!(cache.check_qr_replay(event_id, timestamp).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_qr_replay_different_timestamps_are_independent() {
+        let cache = test_cache().await;
+        cache.record_qr_usage("evt1", 1000).await.unwrap();
+        assert!(cache.check_qr_replay("evt1", 1000).await.unwrap());
+        assert!(!cache.check_qr_replay("evt1", 1001).await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_cleanup_expired_replay_log() {
+        let cache = test_cache().await;
+        cache.record_qr_usage("evt1", 1000).await.unwrap();
+        cache.record_qr_usage("evt1", 2000).await.unwrap();
+
+        let deleted = cache.cleanup_expired_replay_log(Utc::now() + chrono::Duration::hours(1)).await.unwrap();
+        assert_eq!(deleted, 2);
+
+        assert!(!cache.check_qr_replay("evt1", 1000).await.unwrap());
+    }
+}

@@ -163,3 +163,226 @@ impl Default for HealthResponse {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- QrPayload ---
+
+    #[test]
+    fn test_qr_payload_parse_valid() {
+        let payload = QrPayload::parse("EVT001|1700000000|abcdef1234567890").unwrap();
+        assert_eq!(payload.event_id, "EVT001");
+        assert_eq!(payload.timestamp, 1700000000);
+        assert_eq!(payload.hmac, "abcdef1234567890");
+    }
+
+    #[test]
+    fn test_qr_payload_parse_too_few_parts() {
+        assert!(QrPayload::parse("EVT001|1700000000").is_none());
+    }
+
+    #[test]
+    fn test_qr_payload_parse_too_many_parts() {
+        assert!(QrPayload::parse("a|b|c|d").is_none());
+    }
+
+    #[test]
+    fn test_qr_payload_parse_non_integer_timestamp() {
+        assert!(QrPayload::parse("EVT001|notanumber|hmac").is_none());
+    }
+
+    #[test]
+    fn test_qr_payload_encode_roundtrip() {
+        let original = QrPayload {
+            event_id: "TEST".to_string(),
+            timestamp: 12345,
+            hmac: "abcd".to_string(),
+        };
+        let encoded = original.encode();
+        assert_eq!(encoded, "TEST|12345|abcd");
+        let parsed = QrPayload::parse(&encoded).unwrap();
+        assert_eq!(parsed.event_id, original.event_id);
+        assert_eq!(parsed.timestamp, original.timestamp);
+        assert_eq!(parsed.hmac, original.hmac);
+    }
+
+    // --- AttendanceProof ---
+
+    #[test]
+    fn test_attendance_proof_message_format() {
+        let msg = AttendanceProof::message_to_sign("EVT001", 1700000000, "ckt1qaddress");
+        assert_eq!(msg, "CKB-PoP|EVT001|1700000000|ckt1qaddress");
+    }
+
+    #[test]
+    fn test_attendance_proof_signed_message() {
+        let proof = AttendanceProof {
+            event_id: "EVT001".to_string(),
+            attendee_address: "ckt1qaddr".to_string(),
+            qr_payload: QrPayload {
+                event_id: "EVT001".to_string(),
+                timestamp: 1700000000,
+                hmac: "hmac".to_string(),
+            },
+            attendee_signature: "sig".to_string(),
+            created_at: 1700000005,
+        };
+        assert_eq!(proof.signed_message(), "CKB-PoP|EVT001|1700000000|ckt1qaddr");
+    }
+
+    // --- WindowProof ---
+
+    #[test]
+    fn test_window_proof_is_open_within_range() {
+        let now = Utc::now().timestamp();
+        let window = WindowProof {
+            event_id: "EVT001".to_string(),
+            window_start: now - 100,
+            window_end: Some(now + 100),
+            creator_signature: "sig".to_string(),
+            window_secret_commitment: "commit".to_string(),
+        };
+        assert!(window.is_open());
+    }
+
+    #[test]
+    fn test_window_proof_is_open_no_end() {
+        let now = Utc::now().timestamp();
+        let window = WindowProof {
+            event_id: "EVT001".to_string(),
+            window_start: now - 100,
+            window_end: None,
+            creator_signature: "sig".to_string(),
+            window_secret_commitment: "commit".to_string(),
+        };
+        assert!(window.is_open());
+    }
+
+    #[test]
+    fn test_window_proof_is_closed_past_end() {
+        let now = Utc::now().timestamp();
+        let window = WindowProof {
+            event_id: "EVT001".to_string(),
+            window_start: now - 200,
+            window_end: Some(now - 100),
+            creator_signature: "sig".to_string(),
+            window_secret_commitment: "commit".to_string(),
+        };
+        assert!(!window.is_open());
+    }
+
+    #[test]
+    fn test_window_proof_is_closed_before_start() {
+        let now = Utc::now().timestamp();
+        let window = WindowProof {
+            event_id: "EVT001".to_string(),
+            window_start: now + 100,
+            window_end: Some(now + 200),
+            creator_signature: "sig".to_string(),
+            window_secret_commitment: "commit".to_string(),
+        };
+        assert!(!window.is_open());
+    }
+
+    #[test]
+    fn test_window_proof_message_to_sign_with_end() {
+        let msg = WindowProof::message_to_sign("EVT001", 1000, Some(2000));
+        assert_eq!(msg, "CKB-PoP-Window|EVT001|1000|2000");
+    }
+
+    #[test]
+    fn test_window_proof_message_to_sign_open_end() {
+        let msg = WindowProof::message_to_sign("EVT001", 1000, None);
+        assert_eq!(msg, "CKB-PoP-Window|EVT001|1000|open");
+    }
+
+    // --- EventIdPreimage ---
+
+    #[test]
+    fn test_event_id_preimage_deterministic() {
+        let p = EventIdPreimage {
+            creator_address: "ckt1qaddr".to_string(),
+            timestamp: 1700000000,
+            nonce: "abc123".to_string(),
+        };
+        let id1 = p.compute_event_id();
+        let id2 = p.compute_event_id();
+        assert_eq!(id1, id2);
+        assert_eq!(id1.len(), 64); // SHA256 hex = 64 chars
+    }
+
+    #[test]
+    fn test_event_id_preimage_differs_by_nonce() {
+        let p1 = EventIdPreimage {
+            creator_address: "ckt1q".to_string(),
+            timestamp: 1700000000,
+            nonce: "aaa".to_string(),
+        };
+        let p2 = EventIdPreimage {
+            creator_address: "ckt1q".to_string(),
+            timestamp: 1700000000,
+            nonce: "bbb".to_string(),
+        };
+        assert_ne!(p1.compute_event_id(), p2.compute_event_id());
+    }
+
+    #[test]
+    fn test_event_id_preimage_differs_by_address() {
+        let p1 = EventIdPreimage {
+            creator_address: "addr_a".to_string(),
+            timestamp: 1700000000,
+            nonce: "n".to_string(),
+        };
+        let p2 = EventIdPreimage {
+            creator_address: "addr_b".to_string(),
+            timestamp: 1700000000,
+            nonce: "n".to_string(),
+        };
+        assert_ne!(p1.compute_event_id(), p2.compute_event_id());
+    }
+
+    // --- Serialization round-trips ---
+
+    #[test]
+    fn test_event_metadata_json_roundtrip() {
+        let meta = EventMetadata {
+            name: "Test Event".to_string(),
+            description: "A test".to_string(),
+            image_url: Some("https://example.com/img.png".to_string()),
+            location: Some("NYC".to_string()),
+            start_time: Some(Utc::now()),
+            end_time: None,
+        };
+        let json = serde_json::to_string(&meta).unwrap();
+        let parsed: EventMetadata = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, "Test Event");
+        assert_eq!(parsed.location, Some("NYC".to_string()));
+        assert!(parsed.end_time.is_none());
+    }
+
+    #[test]
+    fn test_badge_observation_json_roundtrip() {
+        let badge = BadgeObservation {
+            event_id: "EVT001".to_string(),
+            holder_address: "ckt1qaddr".to_string(),
+            mint_tx_hash: "0xabc".to_string(),
+            mint_block_number: 12345,
+            verified_at_block: 12346,
+            observed_at: Utc::now(),
+        };
+        let json = serde_json::to_string(&badge).unwrap();
+        let parsed: BadgeObservation = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.event_id, "EVT001");
+        assert_eq!(parsed.mint_block_number, 12345);
+    }
+
+    #[test]
+    fn test_health_response_default() {
+        let h = HealthResponse::default();
+        assert_eq!(h.status, "operational");
+        assert_eq!(h.ckb_rpc, "unknown");
+        assert!(h.last_block_observed.is_none());
+    }
+}

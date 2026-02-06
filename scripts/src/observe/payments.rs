@@ -84,3 +84,24 @@ pub enum PaymentObserveError {
     #[error("rpc error: {0}")]
     Rpc(String),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_cache() -> Cache {
+        Cache::new("sqlite::memory:").await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_record_payment_observation() {
+        let cache = test_cache().await;
+        record_payment_observation(&cache, "evt1", "0xtx1", 500).await.unwrap();
+
+        let obs = cache.get_payment_observation("evt1").await.unwrap();
+        assert!(obs.is_some());
+        let obs = obs.unwrap();
+        assert_eq!(obs.payment_tx_hash, "0xtx1");
+        assert_eq!(obs.payment_block_number, 500);
+    }
+}
