@@ -23,8 +23,17 @@ async fn main() {
 
     dotenvy::dotenv().ok();
 
+    // Load network-specific env file: .env.testnet, .env.mainnet, or .env.devnet
+    let ckb_network = std::env::var("CKB_NETWORK").unwrap_or_else(|_| "testnet".to_string());
+    let env_file = format!(".env.{}", ckb_network);
+    if let Err(_) = dotenvy::from_filename(&env_file) {
+        tracing::warn!("No {} found, using defaults for {}", env_file, ckb_network);
+    }
+
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:ckb_pop.db".to_string());
     let ckb_rpc_url = std::env::var("CKB_RPC_URL").unwrap_or_else(|_| "https://testnet.ckb.dev/rpc".to_string());
+
+    tracing::info!("Network: {}, RPC: {}", ckb_network, ckb_rpc_url);
 
     let state = AppState::new(&database_url, &ckb_rpc_url)
         .await
