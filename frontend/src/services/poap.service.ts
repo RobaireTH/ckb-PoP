@@ -24,6 +24,7 @@ export interface Badge {
   imageUrl: string;
   aiDescription?: string;
   role: 'Attendee' | 'Organizer' | 'Certificate';
+  blockNumber?: number;
 }
 
 export interface Attendee {
@@ -257,5 +258,49 @@ export class PoapService {
    */
   async checkBadgeExistsHint(eventId: string, address: string): Promise<boolean> {
     return this.contractService.badgeExistsHint(eventId, address);
+  }
+
+  /**
+   * Load badges from the backend for the given address.
+   * Merges backend observations with locally-minted badges.
+   */
+  async loadBadgesFromBackend(address: string): Promise<void> {
+    try {
+      const res = await fetch(`${this.backendUrl}/badges/observe?address=${encodeURIComponent(address)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const observations: Array<{
+        event_id: string;
+        holder_address: string;
+        mint_tx_hash: string;
+        mint_block_number: number;
+        verified_at_block: number;
+        observed_at: string;
+      }> = data.badges || [];
+
+      // Fetch event details for names and images
+      const backendBadges: Badge[] = [];
+      for (const obs of observations) {
+        const event = await this.getEventById(obs.event_id);
+        backendBadges.push({
+          id: `${obs.event_id}-${obs.holder_address}`,
+          eventId: obs.event_id,
+          eventName: event?.name || obs.event_id,
+          mintDate: obs.observed_at,
+          txHash: obs.mint_tx_hash,
+          imageUrl: event?.imageUrl || `https://picsum.photos/seed/${obs.event_id}/400/400`,
+          role: 'Attendee',
+          blockNumber: obs.mint_block_number,
+        });
+      }
+
+      // Merge: keep local badges that aren't in backend, add all backend badges
+      const localOnly = this.badgesSignal().filter(
+        b => !backendBadges.some(bb => bb.txHash === b.txHash)
+      );
+      this.badgesSignal.set([...backendBadges, ...localOnly]);
+    } catch {
+      // Backend unreachable — keep local badges only
+    }
   }
 }
