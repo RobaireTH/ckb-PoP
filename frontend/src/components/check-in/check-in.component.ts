@@ -88,12 +88,6 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
               </div>
             }
 
-            <!-- Debug -->
-            <div class="absolute bottom-2 inset-x-2 flex justify-center">
-              <button (click)="simulateScan('demo')" class="px-2 py-1 bg-black/80 text-[8px] font-mono text-lime-400/60 border border-lime-500/20 hover:border-lime-400/40 uppercase tracking-wider">
-                Debug: demo
-              </button>
-            </div>
           </div>
 
           <!-- Manual Entry -->
@@ -273,10 +267,6 @@ export class CheckInComponent {
 
   startScanning() {
     this.isScanning.set(true);
-  }
-
-  simulateScan(code: string) {
-    this.validateCode(code);
   }
 
   submitManual() {
