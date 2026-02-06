@@ -82,36 +82,54 @@ export class PoapService {
     const localEvent = this.eventsSignal().find(e => e.id.toLowerCase() === targetId.toLowerCase());
     if (localEvent) return localEvent;
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Legacy/Demo fallback
-    if (targetId === 'demo' || targetId === 'ckb2024') {
-      return {
-        id: 'evt_ckb_2024',
-        name: 'Nervos Ecosystem Summit 2024',
-        date: new Date().toLocaleDateString(),
-        issuer: 'Nervos Foundation',
-        location: 'Singapore & Virtual',
-        imageUrl: 'https://picsum.photos/seed/ckb2024/600/400'
-      };
-    }
-    
-    if (targetId.length > 3) {
-      return {
-        id: `evt_${targetId}`,
-        name: `Secret Event: ${targetId.toUpperCase()}`,
-        date: new Date().toLocaleDateString(),
-        issuer: 'Anonymous DAO',
-        location: 'Metaverse',
-        imageUrl: `https://picsum.photos/seed/${targetId}/600/400`
-      };
+    // Query backend for the event
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${targetId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const evt = data.event;
+        return {
+          id: evt.event_id,
+          name: evt.metadata.name,
+          date: evt.metadata.start_time || evt.activated_at,
+          issuer: evt.creator_address,
+          location: evt.metadata.location || '',
+          description: evt.metadata.description,
+          imageUrl: evt.metadata.image_url,
+          anchorTxHash: evt.payment_tx_hash,
+        };
+      }
+    } catch {
+      // Backend unreachable — fall through
     }
 
-    throw new Error('Invalid Event Code');
+    throw new Error('Event not found');
   }
 
   async getEventById(id: string): Promise<PoPEvent | undefined> {
-    return this.eventsSignal().find(e => e.id === id);
+    const local = this.eventsSignal().find(e => e.id === id);
+    if (local) return local;
+
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const evt = data.event;
+        return {
+          id: evt.event_id,
+          name: evt.metadata.name,
+          date: evt.metadata.start_time || evt.activated_at,
+          issuer: evt.creator_address,
+          location: evt.metadata.location || '',
+          description: evt.metadata.description,
+          imageUrl: evt.metadata.image_url,
+          anchorTxHash: evt.payment_tx_hash,
+        };
+      }
+    } catch {
+      // Backend unreachable
+    }
+    return undefined;
   }
 
   async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
