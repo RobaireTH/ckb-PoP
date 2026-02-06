@@ -426,20 +426,24 @@ export class GalleryComponent implements OnInit {
   constructor() {
     effect(() => {
       if (this.walletService.isConnected()) {
-        this.simulateLoad();
+        this.loadBadges();
       }
     });
   }
 
   ngOnInit() {
     if (this.walletService.isConnected()) {
-      this.simulateLoad();
+      this.loadBadges();
     }
   }
 
-  private simulateLoad() {
+  private async loadBadges() {
     this.loading.set(true);
-    setTimeout(() => this.loading.set(false), 400);
+    const address = this.walletService.address();
+    if (address) {
+      await this.poapService.loadBadgesFromBackend(address);
+    }
+    this.loading.set(false);
   }
 
   truncateAddress(address: string | null, start: number, end: number): string {
@@ -469,8 +473,9 @@ export class GalleryComponent implements OnInit {
   }
 
   getBlockNumber(badge: Badge): string {
-    const hash = badge.txHash;
-    const num = parseInt(hash.slice(2, 10), 16) % 20000000 + 10000000;
-    return num.toLocaleString();
+    if (badge.blockNumber != null) {
+      return badge.blockNumber.toLocaleString();
+    }
+    return 'Pending';
   }
 }

@@ -24,6 +24,7 @@ export interface Badge {
   imageUrl: string;
   aiDescription?: string;
   role: 'Attendee' | 'Organizer' | 'Certificate';
+  blockNumber?: number;
 }
 
 export interface Attendee {
@@ -40,18 +41,7 @@ export class PoapService {
   private toast = inject(ToastService);
   private contractService = inject(ContractService);
 
-  private readonly badgesSignal = signal<Badge[]>([
-    {
-      id: '1',
-      eventId: 'evt_001',
-      eventName: 'CKB Community Meetup',
-      mintDate: new Date('2023-10-15').toISOString(),
-      txHash: '0x74d...3f2a',
-      imageUrl: 'https://picsum.photos/seed/ckb1/400/400',
-      aiDescription: 'A token of early adoption in the nervous network ecosystem.',
-      role: 'Attendee'
-    }
-  ]);
+  private readonly badgesSignal = signal<Badge[]>([]);
 
   // Store created events in memory
   private readonly eventsSignal = signal<PoPEvent[]>([]);
@@ -93,36 +83,54 @@ export class PoapService {
     const localEvent = this.eventsSignal().find(e => e.id.toLowerCase() === targetId.toLowerCase());
     if (localEvent) return localEvent;
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Legacy/Demo fallback
-    if (targetId === 'demo' || targetId === 'ckb2024') {
-      return {
-        id: 'evt_ckb_2024',
-        name: 'Nervos Ecosystem Summit 2024',
-        date: new Date().toLocaleDateString(),
-        issuer: 'Nervos Foundation',
-        location: 'Singapore & Virtual',
-        imageUrl: 'https://picsum.photos/seed/ckb2024/600/400'
-      };
-    }
-    
-    if (targetId.length > 3) {
-      return {
-        id: `evt_${targetId}`,
-        name: `Secret Event: ${targetId.toUpperCase()}`,
-        date: new Date().toLocaleDateString(),
-        issuer: 'Anonymous DAO',
-        location: 'Metaverse',
-        imageUrl: `https://picsum.photos/seed/${targetId}/600/400`
-      };
+    // Query backend for the event
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${targetId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const evt = data.event;
+        return {
+          id: evt.event_id,
+          name: evt.metadata.name,
+          date: evt.metadata.start_time || evt.activated_at,
+          issuer: evt.creator_address,
+          location: evt.metadata.location || '',
+          description: evt.metadata.description,
+          imageUrl: evt.metadata.image_url,
+          anchorTxHash: evt.payment_tx_hash,
+        };
+      }
+    } catch {
+      // Backend unreachable — fall through
     }
 
-    throw new Error('Invalid Event Code');
+    throw new Error('Event not found');
   }
 
   async getEventById(id: string): Promise<PoPEvent | undefined> {
-    return this.eventsSignal().find(e => e.id === id);
+    const local = this.eventsSignal().find(e => e.id === id);
+    if (local) return local;
+
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const evt = data.event;
+        return {
+          id: evt.event_id,
+          name: evt.metadata.name,
+          date: evt.metadata.start_time || evt.activated_at,
+          issuer: evt.creator_address,
+          location: evt.metadata.location || '',
+          description: evt.metadata.description,
+          imageUrl: evt.metadata.image_url,
+          anchorTxHash: evt.payment_tx_hash,
+        };
+      }
+    } catch {
+      // Backend unreachable
+    }
+    return undefined;
   }
 
   async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
@@ -176,17 +184,21 @@ export class PoapService {
     return newEvent;
   }
 
+  private readonly backendUrl = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+
   async getAttendees(eventId: string): Promise<Attendee[]> {
-    // Simulate fetching attendees
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Generate 3-8 random attendees
-    const count = Math.floor(Math.random() * 5) + 3;
-    return Array.from({length: count}, (_, i) => ({
-      address: 'ckb1' + Math.random().toString(36).substring(2, 15) + '...',
-      mintDate: new Date(Date.now() - Math.random() * 10000000).toISOString(),
-      txHash: '0x' + Math.random().toString(16).substring(2, 10) + '...'
-    }));
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${eventId}/badge-holders`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.badges || []).map((b: { holder_address: string; observed_at: string; mint_tx_hash: string }) => ({
+        address: b.holder_address,
+        mintDate: b.observed_at,
+        txHash: b.mint_tx_hash,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
@@ -246,5 +258,49 @@ export class PoapService {
    */
   async checkBadgeExistsHint(eventId: string, address: string): Promise<boolean> {
     return this.contractService.badgeExistsHint(eventId, address);
+  }
+
+  /**
+   * Load badges from the backend for the given address.
+   * Merges backend observations with locally-minted badges.
+   */
+  async loadBadgesFromBackend(address: string): Promise<void> {
+    try {
+      const res = await fetch(`${this.backendUrl}/badges/observe?address=${encodeURIComponent(address)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const observations: Array<{
+        event_id: string;
+        holder_address: string;
+        mint_tx_hash: string;
+        mint_block_number: number;
+        verified_at_block: number;
+        observed_at: string;
+      }> = data.badges || [];
+
+      // Fetch event details for names and images
+      const backendBadges: Badge[] = [];
+      for (const obs of observations) {
+        const event = await this.getEventById(obs.event_id);
+        backendBadges.push({
+          id: `${obs.event_id}-${obs.holder_address}`,
+          eventId: obs.event_id,
+          eventName: event?.name || obs.event_id,
+          mintDate: obs.observed_at,
+          txHash: obs.mint_tx_hash,
+          imageUrl: event?.imageUrl || `https://picsum.photos/seed/${obs.event_id}/400/400`,
+          role: 'Attendee',
+          blockNumber: obs.mint_block_number,
+        });
+      }
+
+      // Merge: keep local badges that aren't in backend, add all backend badges
+      const localOnly = this.badgesSignal().filter(
+        b => !backendBadges.some(bb => bb.txHash === b.txHash)
+      );
+      this.badgesSignal.set([...backendBadges, ...localOnly]);
+    } catch {
+      // Backend unreachable — keep local badges only
+    }
   }
 }
