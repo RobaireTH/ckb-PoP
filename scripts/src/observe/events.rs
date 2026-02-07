@@ -121,6 +121,35 @@ pub async fn activate_event_from_payment(
     Ok(active_event)
 }
 
+pub async fn create_and_activate_event(
+    cache: &Cache,
+    intent: PaymentIntent,
+) -> Result<ActiveEvent, ObserveError> {
+    let event_id = intent.event_id_preimage.compute_event_id();
+
+    cache
+        .store_payment_intent(&intent)
+        .await
+        .map_err(ObserveError::Cache)?;
+
+    let active_event = ActiveEvent {
+        event_id,
+        metadata: intent.event_metadata,
+        creator_address: intent.creator_address,
+        payment_tx_hash: String::new(),
+        payment_block_number: 0,
+        activated_at: Utc::now(),
+        window: None,
+    };
+
+    cache
+        .store_active_event(&active_event)
+        .await
+        .map_err(ObserveError::Cache)?;
+
+    Ok(active_event)
+}
+
 pub async fn update_window(
     cache: &Cache,
     event_id: &str,
