@@ -48,10 +48,13 @@ pub async fn observe_payment(
 }
 
 async fn find_observation_by_tx(
-    _cache: &Cache,
-    _tx_hash: &str,
+    cache: &Cache,
+    tx_hash: &str,
 ) -> Result<Option<PaymentObservation>, PaymentObserveError> {
-    Ok(None)
+    cache
+        .get_payment_observation_by_tx(tx_hash)
+        .await
+        .map_err(PaymentObserveError::Cache)
 }
 
 pub async fn record_payment_observation(

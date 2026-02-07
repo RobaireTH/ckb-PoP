@@ -15,10 +15,23 @@ impl QrPayload {
         if parts.len() != 3 {
             return None;
         }
+
+        let event_id = parts[0];
+        if event_id.is_empty() {
+            return None;
+        }
+
+        let timestamp: i64 = parts[1].parse().ok()?;
+
+        let hmac = parts[2];
+        if hmac.is_empty() || !hmac.chars().all(|c| c.is_ascii_hexdigit()) {
+            return None;
+        }
+
         Some(Self {
-            event_id: parts[0].to_string(),
-            timestamp: parts[1].parse().ok()?,
-            hmac: parts[2].to_string(),
+            event_id: event_id.to_string(),
+            timestamp,
+            hmac: hmac.to_string(),
         })
     }
 

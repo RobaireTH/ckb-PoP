@@ -84,27 +84,25 @@ export class PoapService {
     if (localEvent) return localEvent;
 
     // Query backend for the event
-    try {
-      const res = await fetch(`${this.backendUrl}/events/${targetId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const evt = data.event;
-        return {
-          id: evt.event_id,
-          name: evt.metadata.name,
-          date: evt.metadata.start_time || evt.activated_at,
-          issuer: evt.creator_address,
-          location: evt.metadata.location || '',
-          description: evt.metadata.description,
-          imageUrl: evt.metadata.image_url,
-          anchorTxHash: evt.payment_tx_hash,
-        };
-      }
-    } catch {
-      // Backend unreachable — fall through
+    const res = await fetch(`${this.backendUrl}/events/${targetId}`);
+    if (res.ok) {
+      const data = await res.json();
+      const evt = data.event;
+      return {
+        id: evt.event_id,
+        name: evt.metadata.name,
+        date: evt.metadata.start_time || evt.activated_at,
+        issuer: evt.creator_address,
+        location: evt.metadata.location || '',
+        description: evt.metadata.description,
+        imageUrl: evt.metadata.image_url,
+        anchorTxHash: evt.payment_tx_hash,
+      };
+    } else if (res.status === 404) {
+      throw new Error('Event not found');
+    } else {
+      throw new Error(`Backend error (HTTP ${res.status})`);
     }
-
-    throw new Error('Event not found');
   }
 
   async getEventById(id: string): Promise<PoPEvent | undefined> {
@@ -116,7 +114,7 @@ export class PoapService {
       if (res.ok) {
         const data = await res.json();
         const evt = data.event;
-        return {
+        const event: PoPEvent = {
           id: evt.event_id,
           name: evt.metadata.name,
           date: evt.metadata.start_time || evt.activated_at,
@@ -126,6 +124,9 @@ export class PoapService {
           imageUrl: evt.metadata.image_url,
           anchorTxHash: evt.payment_tx_hash,
         };
+        // Cache the fetched event to avoid redundant backend calls
+        this.eventsSignal.update(evts => [...evts, event]);
+        return event;
       }
     } catch {
       // Backend unreachable
@@ -278,10 +279,24 @@ export class PoapService {
         observed_at: string;
       }> = data.badges || [];
 
-      // Fetch event details for names and images
+      // Dedupe event IDs to avoid redundant network calls
+      const uniqueEventIds = Array.from(
+        new Set(observations.map((obs) => obs.event_id))
+      );
+
+      // Fetch all required events in parallel
+      const eventsById = new Map<string, PoPEvent | null>();
+      await Promise.all(
+        uniqueEventIds.map(async (eventId) => {
+          const event = await this.getEventById(eventId);
+          eventsById.set(eventId, event ?? null);
+        })
+      );
+
+      // Build backend badges using the cached event data
       const backendBadges: Badge[] = [];
       for (const obs of observations) {
-        const event = await this.getEventById(obs.event_id);
+        const event = eventsById.get(obs.event_id) ?? undefined;
         backendBadges.push({
           id: `${obs.event_id}-${obs.holder_address}`,
           eventId: obs.event_id,

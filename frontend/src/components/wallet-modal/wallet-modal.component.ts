@@ -1,7 +1,6 @@
 import { Component, output, inject, ElementRef, AfterViewInit, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WalletService, WalletOption, WalletSuggestion } from '../../services/wallet.service';
-import { ccc } from '@ckb-ccc/ccc';
 
 @Component({
   selector: 'app-wallet-modal',

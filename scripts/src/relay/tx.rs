@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 
 use crate::cache::Cache;
 use crate::crypto::{qr, signatures};
@@ -113,20 +114,14 @@ pub async fn build_badge_tx(
 
 pub async fn broadcast_tx(
     _rpc: &CkbRpcClient,
-    request: BroadcastRequest,
+    _request: BroadcastRequest,
 ) -> Result<BroadcastResponse, RelayError> {
-    let tx_hash = format!(
-        "0x{}",
-        hex::encode(&sha2::Sha256::digest(request.signed_tx.as_bytes())[..32])
-    );
-
-    Ok(BroadcastResponse {
-        tx_hash,
-        status: "submitted".to_string(),
-    })
+    Err(RelayError::Rpc(
+        "broadcast_tx is not implemented: transaction was not submitted to the network"
+            .to_string(),
+    ))
 }
 
-use sha2::Digest;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RelayError {
@@ -282,20 +277,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_broadcast_tx_returns_hash() {
+    async fn test_broadcast_tx_returns_not_implemented_error() {
         let rpc = test_rpc();
         let result = broadcast_tx(&rpc, BroadcastRequest {
             signed_tx: "some_signed_tx_data".to_string(),
-        }).await.unwrap();
-        assert!(result.tx_hash.starts_with("0x"));
-        assert_eq!(result.status, "submitted");
-    }
-
-    #[tokio::test]
-    async fn test_broadcast_tx_deterministic() {
-        let rpc = test_rpc();
-        let r1 = broadcast_tx(&rpc, BroadcastRequest { signed_tx: "tx_data".to_string() }).await.unwrap();
-        let r2 = broadcast_tx(&rpc, BroadcastRequest { signed_tx: "tx_data".to_string() }).await.unwrap();
-        assert_eq!(r1.tx_hash, r2.tx_hash);
+        }).await;
+        assert!(matches!(result, Err(RelayError::Rpc(_))));
     }
 }

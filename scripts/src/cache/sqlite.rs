@@ -67,14 +67,6 @@ impl Cache {
                 used_at TEXT NOT NULL,
                 PRIMARY KEY (event_id, timestamp)
             );
-
-            CREATE TABLE IF NOT EXISTS challenge_cache (
-                challenge_id TEXT PRIMARY KEY,
-                event_id TEXT NOT NULL,
-                nonce TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                expires_at TEXT NOT NULL
-            );
             "#,
         )
         .execute(&self.pool)
@@ -154,6 +146,24 @@ impl Cache {
         }))
     }
 
+    pub async fn get_payment_observation_by_tx(&self, tx_hash: &str) -> Result<Option<PaymentObservation>, sqlx::Error> {
+        let row: Option<(String, String, i64, String)> = sqlx::query_as(
+            "SELECT event_id, payment_tx_hash, payment_block_number, observed_at FROM payment_observations WHERE payment_tx_hash = ?",
+        )
+        .bind(tx_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|(event_id, payment_tx_hash, payment_block_number, observed_at)| {
+            PaymentObservation {
+                event_id,
+                payment_tx_hash,
+                payment_block_number: payment_block_number as u64,
+                observed_at: DateTime::parse_from_rfc3339(&observed_at).unwrap().with_timezone(&Utc),
+            }
+        }))
+    }
+
     pub async fn store_active_event(&self, event: &ActiveEvent) -> Result<(), sqlx::Error> {
         let window_json = event.window.as_ref().map(|w| serde_json::to_string(w).unwrap());
         sqlx::query(
@@ -213,11 +223,16 @@ impl Cache {
     }
 
     pub async fn update_event_window(&self, event_id: &str, window: &WindowProof) -> Result<(), sqlx::Error> {
-        sqlx::query("UPDATE active_events SET window_json = ? WHERE event_id = ?")
+        let result = sqlx::query("UPDATE active_events SET window_json = ? WHERE event_id = ?")
             .bind(serde_json::to_string(window).unwrap())
             .bind(event_id)
             .execute(&self.pool)
             .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
         Ok(())
     }
 

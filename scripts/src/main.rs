@@ -25,9 +25,16 @@ async fn main() {
 
     // Load network-specific env file: .env.testnet, .env.mainnet, or .env.devnet
     let ckb_network = std::env::var("CKB_NETWORK").unwrap_or_else(|_| "testnet".to_string());
+    if !["devnet", "testnet", "mainnet"].contains(&ckb_network.as_str()) {
+        tracing::error!(
+            "Invalid CKB_NETWORK='{}'. Must be one of: devnet, testnet, mainnet. Defaulting to testnet.",
+            ckb_network
+        );
+    }
     let env_file = format!(".env.{}", ckb_network);
-    if let Err(_) = dotenvy::from_filename(&env_file) {
-        tracing::warn!("No {} found, using defaults for {}", env_file, ckb_network);
+    let env_path = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), env_file);
+    if dotenvy::from_filename(&env_path).is_err() {
+        tracing::warn!("No {} found, using defaults for {}", env_path, ckb_network);
     }
 
     let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:ckb_pop.db".to_string());

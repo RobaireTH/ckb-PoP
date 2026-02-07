@@ -7,6 +7,7 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 
 use crate::crypto::qr;
 use crate::observe::{self, ObserveError};
@@ -154,8 +155,6 @@ async fn submit_window(
 
     Ok(Json(window))
 }
-
-use sha2::Digest;
 
 async fn get_qr(
     State(state): State<AppState>,

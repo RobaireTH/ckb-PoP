@@ -114,7 +114,19 @@ pub fn recover_pubkey(
         return Err(SignatureError::InvalidSignature);
     }
 
-    let recovery_id = ecdsa::RecoveryId::from_i32(sig_bytes[64] as i32)
+    // Normalize the recovery id byte based on the signature format.
+    // Ethereum signatures typically use v = 27/28 or EIP-155 values (>= 35).
+    let v = sig_bytes[64];
+    let rec_id_u8 = match format {
+        SignatureFormat::Ethereum => match v {
+            27 | 28 => v - 27,
+            x if x >= 35 => (x - 35) % 2,
+            x => x,
+        },
+        _ => v,
+    };
+
+    let recovery_id = ecdsa::RecoveryId::from_i32(rec_id_u8 as i32)
         .map_err(|_| SignatureError::InvalidRecoveryId)?;
     let sig = ecdsa::RecoverableSignature::from_compact(&sig_bytes[..64], recovery_id)
         .map_err(|_| SignatureError::InvalidSignature)?;
@@ -134,9 +146,13 @@ pub fn verify_ckb_address_signature(
     signature_hex: &str,
     address: &str,
 ) -> Result<(), SignatureError> {
-    let (code_hash, _hash_type, args) = parse_ckb_address(address)?;
+    let (code_hash, hash_type, args) = parse_ckb_address(address)?;
 
     if code_hash != SECP256K1_BLAKE160_CODE_HASH {
+        return Err(SignatureError::UnsupportedLockScript);
+    }
+    // secp256k1-blake160-sighash-all uses hash_type = 0x01 ("type" script hash)
+    if hash_type != 0x01 {
         return Err(SignatureError::UnsupportedLockScript);
     }
     if args.len() != 20 {
@@ -200,7 +216,7 @@ fn parse_ckb_address(address: &str) -> Result<([u8; 32], u8, Vec<u8>), Signature
         }
         // Short format (deprecated): 0x01 | index(1) | args(20)
         0x01 => {
-            if payload.len() < 22 {
+            if payload.len() != 22 {
                 return Err(SignatureError::InvalidAddress);
             }
             let index = payload[1];

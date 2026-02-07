@@ -432,9 +432,8 @@ export class GalleryComponent implements OnInit {
   }
 
   ngOnInit() {
-    if (this.walletService.isConnected()) {
-      this.loadBadges();
-    }
+    // Badge loading is handled by the constructor effect;
+    // no need to load again here.
   }
 
   private async loadBadges() {

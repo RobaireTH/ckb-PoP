@@ -20,7 +20,7 @@ pub fn derive_window_secret(event_id: &str, window_start: i64, creator_sig: &str
 pub fn generate_qr_hmac(window_secret: &[u8; 32], timestamp: i64) -> String {
     let mut mac = HmacSha256::new_from_slice(window_secret).expect("HMAC accepts any key size");
     mac.update(&timestamp.to_le_bytes());
-    hex::encode(mac.finalize().into_bytes())[..16].to_string()
+    hex::encode(mac.finalize().into_bytes())[..32].to_string()
 }
 
 pub fn verify_qr_hmac(window_secret: &[u8; 32], timestamp: i64, hmac_value: &str) -> bool {
@@ -52,7 +52,7 @@ pub fn validate_qr_freshness(qr_timestamp: i64, window_start: i64, window_end: O
     }
 
     let age = now - qr_timestamp;
-    age >= 0 && age <= QR_TTL_SECONDS * 2
+    age >= 0 && age <= QR_TTL_SECONDS
 }
 
 pub fn qr_ttl_seconds() -> u32 {
@@ -92,10 +92,10 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_qr_hmac_is_16_hex_chars() {
+    fn test_generate_qr_hmac_is_32_hex_chars() {
         let secret = derive_window_secret("EVT001", 1700000000, "sig");
         let hmac = generate_qr_hmac(&secret, 1700000050);
-        assert_eq!(hmac.len(), 16);
+        assert_eq!(hmac.len(), 32);
         assert!(hmac.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
@@ -178,7 +178,7 @@ mod tests {
     fn test_validate_qr_freshness_too_old() {
         let now = Utc::now().timestamp();
         let window_start = now - 3600;
-        let old_timestamp = now - 120; // 2 minutes old, beyond 60s limit
+        let old_timestamp = now - 120; // 2 minutes old, beyond 30s TTL
         assert!(!validate_qr_freshness(old_timestamp, window_start, None));
     }
 
@@ -186,7 +186,7 @@ mod tests {
     fn test_validate_qr_freshness_within_ttl() {
         let now = Utc::now().timestamp();
         let window_start = now - 3600;
-        let recent_timestamp = now - 10; // 10 seconds old, within 60s limit
+        let recent_timestamp = now - 10; // 10 seconds old, within 30s TTL
         assert!(validate_qr_freshness(recent_timestamp, window_start, None));
     }
 
