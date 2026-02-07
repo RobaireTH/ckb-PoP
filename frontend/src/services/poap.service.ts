@@ -80,10 +80,7 @@ export class PoapService {
       }
     }
 
-    const localEvent = this.eventsSignal().find(e => e.id.toLowerCase() === targetId.toLowerCase());
-    if (localEvent) return localEvent;
-
-    // Query backend for the event
+    // Query backend (source of truth) for the event
     try {
       const res = await fetch(`${this.backendUrl}/events/${targetId}`);
       if (res.ok) {
@@ -101,16 +98,15 @@ export class PoapService {
         };
       }
     } catch {
-      // Backend unreachable — fall through
+      // Backend unreachable — fall back to local cache
+      const localEvent = this.eventsSignal().find(e => e.id.toLowerCase() === targetId.toLowerCase());
+      if (localEvent) return localEvent;
     }
 
     throw new Error('Event not found');
   }
 
   async getEventById(id: string): Promise<PoPEvent | undefined> {
-    const local = this.eventsSignal().find(e => e.id === id);
-    if (local) return local;
-
     try {
       const res = await fetch(`${this.backendUrl}/events/${id}`);
       if (res.ok) {
@@ -128,7 +124,8 @@ export class PoapService {
         };
       }
     } catch {
-      // Backend unreachable
+      // Backend unreachable — fall back to local cache
+      return this.eventsSignal().find(e => e.id === id);
     }
     return undefined;
   }
