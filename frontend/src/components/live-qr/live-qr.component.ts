@@ -104,21 +104,10 @@ export class LiveQrComponent implements OnInit, OnDestroy {
 
     const ev = await this.poapService.getEventById(id);
     if (!ev) {
-      if (id === 'demo') {
-        this.event.set({
-          id: 'demo',
-          name: 'Demo Event',
-          date: '2024-01-01',
-          issuer: 'demo',
-          location: 'Virtual'
-        });
-      } else {
-        this.router.navigate(['/gallery']);
-        return;
-      }
-    } else {
-      this.event.set(ev);
+      this.router.navigate(['/gallery']);
+      return;
     }
+    this.event.set(ev);
     this.startRotation();
   }
 

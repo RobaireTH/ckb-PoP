@@ -21,6 +21,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health))
         .route("/events/intent", post(submit_intent))
+        .route("/events/create", post(create_event))
         .route("/events", get(list_events))
         .route("/events/:id", get(get_event))
         .route("/events/:id/window", post(submit_window))
@@ -96,6 +97,33 @@ async fn submit_intent(
         event_id,
         expires_at: (now + Duration::hours(24)).timestamp(),
     }))
+}
+
+async fn create_event(
+    State(state): State<AppState>,
+    Json(req): Json<IntentRequest>,
+) -> Result<Json<ActiveEvent>, AppError> {
+    let now = Utc::now();
+    let preimage = EventIdPreimage {
+        creator_address: req.creator_address.clone(),
+        timestamp: now.timestamp(),
+        nonce: req.nonce,
+    };
+
+    let intent = PaymentIntent {
+        event_id_preimage: preimage,
+        creator_address: req.creator_address,
+        creator_signature: req.creator_signature,
+        event_metadata: req.metadata,
+        declared_at: now,
+        expires_at: now + Duration::hours(24),
+    };
+
+    let active_event = observe::create_and_activate_event(&state.cache, intent)
+        .await
+        .map_err(AppError::Observe)?;
+
+    Ok(Json(active_event))
 }
 
 #[derive(Deserialize)]
