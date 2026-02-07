@@ -1,0 +1,25 @@
+app = 'ckb-pop-backend'
+primary_region = 'sin'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  CKB_NETWORK = 'testnet'
+  CKB_RPC_URL = 'https://testnet.ckb.dev/rpc'
+  DATABASE_URL = 'sqlite:./data/ckb_pop.db?mode=rwc'
+
+[http_service]
+  internal_port = 3001
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[mounts]
+  source = 'ckb_pop_data'
+  destination = '/app/data'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
