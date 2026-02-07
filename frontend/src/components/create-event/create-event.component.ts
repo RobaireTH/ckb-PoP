@@ -163,16 +163,31 @@ type CreateStep = 'form' | 'creating' | 'success';
                 <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Contract active on CKB</div>
               </div>
 
-              <div class="p-4">
-                <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Protocol ID</div>
-                <button (click)="copyId()" class="w-full bg-zinc-950 border border-white/[0.04] p-3 mb-1 cursor-pointer hover:border-lime-400/20 transition-colors group">
-                  <div class="font-mono text-sm text-lime-400 tracking-wider text-center break-all">{{ createdEvent()?.id }}</div>
+              <div class="p-5">
+                <!-- Prominent Protocol ID -->
+                <div class="font-mono text-[10px] text-lime-400 uppercase tracking-widest mb-3 text-center">Protocol ID</div>
+                <button (click)="copyId()" class="w-full bg-zinc-950 border-2 border-lime-400/30 hover:border-lime-400/60 p-4 mb-2 cursor-pointer transition-colors group">
+                  <div class="font-mono text-lg text-white tracking-wider text-center break-all select-all leading-relaxed">{{ createdEvent()?.id }}</div>
+                  <div class="flex items-center justify-center gap-1.5 mt-2">
+                    <svg class="w-3 h-3 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span class="font-mono text-[9px] uppercase tracking-wider" [class.text-lime-400]="copied()" [class.text-zinc-500]="!copied()">
+                      {{ copied() ? 'Copied!' : 'Tap to copy' }}
+                    </span>
+                  </div>
                 </button>
-                <div class="font-mono text-[8px] uppercase tracking-wider mb-4 text-center" [class.text-lime-400]="copied()" [class.text-zinc-600]="!copied()">
-                  {{ copied() ? 'Copied!' : 'Tap to copy' }}
-                </div>
-                <div class="font-mono text-[9px] text-zinc-500 uppercase tracking-wider mb-4 text-center">
-                  Distribute to attendees for badge minting
+
+                <!-- Share instruction -->
+                <div class="bg-lime-400/5 border border-lime-400/10 p-3 mb-4">
+                  <div class="flex items-start gap-2">
+                    <svg class="w-3 h-3 text-lime-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div class="font-mono text-[9px] text-zinc-400 uppercase tracking-wider leading-relaxed">
+                      Share this ID with attendees. They will paste it at check-in to mint their badge.
+                    </div>
+                  </div>
                 </div>
 
                 <div class="flex gap-2">

@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { PoapService, PoPEvent } from '../../services/poap.service';
+import QRCode from 'qrcode';
 
 @Component({
   selector: 'app-live-qr',
@@ -131,10 +132,20 @@ export class LiveQrComponent implements OnInit, OnDestroy {
     }, 1000);
   }
 
-  updateQr() {
+  async updateQr() {
     if (!this.event()) return;
     const payload = `${this.event()?.id}|${Date.now()}`;
-    this.qrUrl.set(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payload)}&bgcolor=ffffff&color=0f172a&margin=0`);
+    try {
+      const dataUrl = await QRCode.toDataURL(payload, {
+        width: 300,
+        margin: 1,
+        color: { dark: '#0f172a', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
+      });
+      this.qrUrl.set(dataUrl);
+    } catch {
+      this.qrUrl.set(null);
+    }
     this.secondsLeft.set(this.REFRESH_RATE);
     this.progress.set(100);
   }
