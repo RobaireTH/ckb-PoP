@@ -1,12 +1,18 @@
 import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { WalletService } from '../../services/wallet.service';
 import { PoapService, PoPEvent } from '../../services/poap.service';
 import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 
 type CreateStep = 'form' | 'creating' | 'success';
+
+function notInPast(control: AbstractControl) {
+  if (!control.value) return null;
+  const today = new Date().toISOString().split('T')[0];
+  return control.value < today ? { pastDate: true } : null;
+}
 
 @Component({
   selector: 'app-create-event',
@@ -87,9 +93,13 @@ type CreateStep = 'form' | 'creating' | 'success';
                       <input
                         formControlName="date"
                         type="date"
-                        class="w-full bg-zinc-900/50 border border-white/[0.04] px-3 py-2 text-white text-xs focus:border-lime-400/30 focus:outline-none dark:[color-scheme:dark]"
+                        [min]="today"
+                        class="w-full bg-zinc-900/50 border border-white/[0.04] px-3 py-2 text-white text-xs focus:border-lime-400/30 focus:outline-none date-input"
                         [class.border-red-500/50]="form.controls.date.touched && form.controls.date.invalid"
                       >
+                      @if (form.controls.date.touched && form.controls.date.errors?.['pastDate']) {
+                        <div class="font-mono text-[8px] text-red-400 uppercase tracking-wider mt-1">Must be today or later</div>
+                      }
                     </div>
                     <div>
                       <label class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider block mb-2">Location</label>
@@ -231,6 +241,14 @@ type CreateStep = 'form' | 'creating' | 'success';
     .btn-action:hover:not(:disabled) {
       box-shadow: 0 0 20px rgba(163, 230, 53, 0.3);
     }
+    .date-input {
+      color-scheme: dark;
+    }
+    .date-input::-webkit-calendar-picker-indicator {
+      filter: invert(1) brightness(0.7);
+      cursor: pointer;
+      opacity: 1;
+    }
   `]
 })
 export class CreateEventComponent {
@@ -243,10 +261,11 @@ export class CreateEventComponent {
   createdEvent = signal<PoPEvent | null>(null);
   uploadedImage = signal<string | null>(null);
   copied = signal(false);
+  today = new Date().toISOString().split('T')[0];
 
   form = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
-    date: ['', [Validators.required]],
+    date: ['', [Validators.required, notInPast]],
     location: ['', [Validators.required, Validators.maxLength(200)]],
     description: ['', [Validators.maxLength(500)]]
   });
