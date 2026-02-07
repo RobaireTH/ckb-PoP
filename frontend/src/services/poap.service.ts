@@ -138,6 +138,9 @@ export class PoapService {
     const signature = await this.walletService.signMessage(message);
 
     // Submit to backend — gets cryptographic event ID
+    // Backend expects Option<DateTime<Utc>> — convert date string to ISO 8601
+    const startTime = eventData.date ? new Date(eventData.date).toISOString() : null;
+
     const res = await fetch(`${this.backendUrl}/events/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -150,7 +153,7 @@ export class PoapService {
           description: eventData.description || '',
           image_url: eventData.imageUrl || null,
           location: eventData.location || null,
-          start_time: eventData.date || null,
+          start_time: startTime,
           end_time: null,
         }
       })
