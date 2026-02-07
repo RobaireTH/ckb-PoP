@@ -5,11 +5,12 @@ import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PoapService, PoPEvent } from '../../services/poap.service';
 import { WalletService } from '../../services/wallet.service';
 import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
+import { QrScannerComponent } from '../qr-scanner/qr-scanner.component';
 
 @Component({
   selector: 'app-check-in',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, WalletModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, WalletModalComponent, QrScannerComponent],
   template: `
     <div class="min-h-screen pt-14 pb-20 px-4">
       <div class="max-w-md mx-auto pt-8">
@@ -54,40 +55,28 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           }
 
           <!-- Scanner -->
-          <div class="border border-white/[0.04] bg-black aspect-square mb-4 relative overflow-hidden">
+          <div class="border border-white/[0.04] bg-black mb-4 relative overflow-hidden">
             @if (isScanning()) {
-              <div class="absolute inset-0">
-                <div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(163,230,53,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(163,230,53,0.5) 1px, transparent 1px); background-size: 16px 16px;"></div>
-
-                <!-- Frame -->
-                <div class="absolute inset-0 flex items-center justify-center">
-                  <div class="relative w-40 h-40">
-                    <div class="absolute top-0 left-0 w-4 h-4 border-l border-t border-lime-400"></div>
-                    <div class="absolute top-0 right-0 w-4 h-4 border-r border-t border-lime-400"></div>
-                    <div class="absolute bottom-0 left-0 w-4 h-4 border-l border-b border-lime-400"></div>
-                    <div class="absolute bottom-0 right-0 w-4 h-4 border-r border-b border-lime-400"></div>
-                    <div class="absolute inset-x-0 h-px bg-lime-400/80 scan-line"></div>
-                  </div>
-                </div>
-
-                <!-- Status -->
-                <div class="absolute top-3 left-3 flex items-center gap-1.5 bg-black/80 px-2 py-1 border border-white/[0.04]">
-                  <span class="w-1.5 h-1.5 bg-red-500 animate-pulse"></span>
-                  <span class="font-mono text-[8px] text-zinc-500 uppercase tracking-wider">Scanning</span>
-                </div>
+              <app-qr-scanner
+                (scanned)="onQrScanned($event)"
+                (scanError)="onScanError($event)"
+              ></app-qr-scanner>
+              <div class="p-2 text-center">
+                <button (click)="stopScanning()" class="font-mono text-[9px] text-zinc-500 uppercase tracking-wider hover:text-white">
+                  Close scanner
+                </button>
               </div>
             } @else {
-              <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div class="aspect-square flex flex-col items-center justify-center">
                 <div class="w-8 h-8 border border-zinc-800 mb-3 flex items-center justify-center">
                   <svg class="w-4 h-4 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h2M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
                 </div>
-                <button (click)="startScanning()" class="btn-secondary text-[9px]">Initialize Scanner</button>
+                <button (click)="startScanning()" class="btn-secondary text-[9px]">Scan QR Code</button>
                 <div class="font-mono text-[8px] text-zinc-700 uppercase tracking-wider mt-2">Camera required</div>
               </div>
             }
-
           </div>
 
           <!-- Manual Entry -->
@@ -201,13 +190,6 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
     }
   `,
   styles: [`
-    @keyframes scan {
-      0%, 100% { top: 0; }
-      50% { top: calc(100% - 1px); }
-    }
-    .scan-line {
-      animation: scan 2s ease-in-out infinite;
-    }
     .btn-action {
       display: inline-flex;
       align-items: center;
@@ -267,6 +249,20 @@ export class CheckInComponent {
 
   startScanning() {
     this.isScanning.set(true);
+    this.errorMsg.set(null);
+  }
+
+  stopScanning() {
+    this.isScanning.set(false);
+  }
+
+  onQrScanned(data: string) {
+    this.isScanning.set(false);
+    this.validateCode(data);
+  }
+
+  onScanError(message: string) {
+    this.errorMsg.set(message);
   }
 
   submitManual() {
