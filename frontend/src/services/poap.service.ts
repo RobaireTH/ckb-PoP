@@ -204,7 +204,7 @@ export class PoapService {
     return newEvent;
   }
 
-  private readonly backendUrl = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:3001/api';
+  private readonly backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
   async getAttendees(eventId: string): Promise<Attendee[]> {
     try {

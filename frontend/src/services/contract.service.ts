@@ -27,24 +27,24 @@ export interface ContractConfig {
  * In production, these come from: import.meta.env.VITE_DOB_BADGE_CODE_HASH etc.
  */
 const DOB_BADGE_CONFIG: ContractConfig = {
-  codeHash: import.meta.env?.['VITE_DOB_BADGE_CODE_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000001',
-  hashType: (import.meta.env?.['VITE_DOB_BADGE_HASH_TYPE'] as ContractConfig['hashType']) || 'type',
+  codeHash: import.meta.env.VITE_DOB_BADGE_CODE_HASH || '0x0000000000000000000000000000000000000000000000000000000000000001',
+  hashType: (import.meta.env.VITE_DOB_BADGE_HASH_TYPE as ContractConfig['hashType']) || 'type',
   cellDep: {
     outPoint: {
-      txHash: import.meta.env?.['VITE_DOB_BADGE_DEP_TX_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000000',
-      index: Number(import.meta.env?.['VITE_DOB_BADGE_DEP_INDEX']) || 0,
+      txHash: import.meta.env.VITE_DOB_BADGE_DEP_TX_HASH || '0x0000000000000000000000000000000000000000000000000000000000000000',
+      index: Number(import.meta.env.VITE_DOB_BADGE_DEP_INDEX) || 0,
     },
     depType: 'code',
   },
 };
 
 const EVENT_ANCHOR_CONFIG: ContractConfig = {
-  codeHash: import.meta.env?.['VITE_EVENT_ANCHOR_CODE_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000002',
-  hashType: (import.meta.env?.['VITE_EVENT_ANCHOR_HASH_TYPE'] as ContractConfig['hashType']) || 'type',
+  codeHash: import.meta.env.VITE_EVENT_ANCHOR_CODE_HASH || '0x0000000000000000000000000000000000000000000000000000000000000002',
+  hashType: (import.meta.env.VITE_EVENT_ANCHOR_HASH_TYPE as ContractConfig['hashType']) || 'type',
   cellDep: {
     outPoint: {
-      txHash: import.meta.env?.['VITE_EVENT_ANCHOR_DEP_TX_HASH'] || '0x0000000000000000000000000000000000000000000000000000000000000000',
-      index: Number(import.meta.env?.['VITE_EVENT_ANCHOR_DEP_INDEX']) || 0,
+      txHash: import.meta.env.VITE_EVENT_ANCHOR_DEP_TX_HASH || '0x0000000000000000000000000000000000000000000000000000000000000000',
+      index: Number(import.meta.env.VITE_EVENT_ANCHOR_DEP_INDEX) || 0,
     },
     depType: 'code',
   },
