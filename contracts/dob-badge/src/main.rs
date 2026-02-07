@@ -3,9 +3,11 @@
 #![no_std]
 #![no_main]
 
+ckb_std::default_alloc!();
+
 use ckb_std::{
     ckb_constants::Source,
-    ckb_types::{bytes::Bytes, packed::Script, prelude::*},
+    ckb_types::{bytes::Bytes, prelude::*},
     error::SysError,
     high_level::{load_script, load_cell_type},
 };
