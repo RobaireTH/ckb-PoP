@@ -1,0 +1,16 @@
+[[cells]]
+name = "dob-badge"
+enable_type_id = true
+location = { file = "target/riscv64imac-unknown-none-elf/release/dob-badge" }
+create_type_id = true
+
+[[cells]]
+name = "event-anchor"
+enable_type_id = true
+location = { file = "target/riscv64imac-unknown-none-elf/release/event-anchor" }
+create_type_id = true
+
+[lock]
+code_hash = "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
+hash_type = "type"
+args = "0x1c71d01ffcfe44e6782011d9a62c6c1ca8e0bd47"

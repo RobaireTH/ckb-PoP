@@ -25,7 +25,19 @@
                 "input": "assets",
                 "output": "assets"
               }
-            ]
+            ],
+            "define": {
+              "import.meta.env.VITE_BACKEND_URL": "\"https://ckb-pop-backend.fly.dev/api\"",
+              "import.meta.env.VITE_CKB_NETWORK": "\"testnet\"",
+              "import.meta.env.VITE_DOB_BADGE_CODE_HASH": "\"0xb36ed7616c4c87c0779a6c1238e78a84ea68a2638173f25ed140650e0454fbb9\"",
+              "import.meta.env.VITE_DOB_BADGE_HASH_TYPE": "\"type\"",
+              "import.meta.env.VITE_DOB_BADGE_DEP_TX_HASH": "\"0xfcbfc28dab06dfd5b5dbfbdbec0e4d25df712ab5132989d31654bce567262d73\"",
+              "import.meta.env.VITE_DOB_BADGE_DEP_INDEX": "\"0\"",
+              "import.meta.env.VITE_EVENT_ANCHOR_CODE_HASH": "\"0xd565d738ad5ac99addddc59fd3af5e0d54469dc9834cf766260c7e0d23c70b37\"",
+              "import.meta.env.VITE_EVENT_ANCHOR_HASH_TYPE": "\"type\"",
+              "import.meta.env.VITE_EVENT_ANCHOR_DEP_TX_HASH": "\"0xfcbfc28dab06dfd5b5dbfbdbec0e4d25df712ab5132989d31654bce567262d73\"",
+              "import.meta.env.VITE_EVENT_ANCHOR_DEP_INDEX": "\"1\""
+            }
           },
           "configurations": {
             "production": {
