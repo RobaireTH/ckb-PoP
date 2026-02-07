@@ -25,7 +25,11 @@
                 "input": "assets",
                 "output": "assets"
               }
-            ]
+            ],
+            "define": {
+              "import.meta.env.VITE_BACKEND_URL": "\"https://ckb-pop-backend.fly.dev/api\"",
+              "import.meta.env.VITE_CKB_NETWORK": "\"testnet\""
+            }
           },
           "configurations": {
             "production": {
