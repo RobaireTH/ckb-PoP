@@ -102,8 +102,8 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
             <input
               [formControl]="manualCode"
               type="text"
-              placeholder="Protocol ID"
-              maxlength="12"
+              placeholder="Paste event ID"
+              maxlength="64"
               class="flex-1 bg-zinc-900/50 border border-white/[0.04] px-3 py-2 text-white font-mono text-xs uppercase tracking-wider placeholder:text-zinc-700 focus:border-lime-400/30 focus:outline-none"
             >
             <button
@@ -125,8 +125,8 @@ import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
           @if (manualCode.invalid && manualCode.touched) {
             <div class="mt-2 font-mono text-[9px] text-red-400 uppercase tracking-wider">
               @if (manualCode.errors?.['required']) { ID required }
-              @else if (manualCode.errors?.['minlength']) { Min 4 chars }
-              @else if (manualCode.errors?.['pattern']) { Alphanumeric only }
+              @else if (manualCode.errors?.['minlength']) { Min 6 chars }
+              @else if (manualCode.errors?.['pattern']) { Hex characters only (0-9, a-f) }
             </div>
           }
 
@@ -260,9 +260,9 @@ export class CheckInComponent {
 
   manualCode = new FormControl('', [
     Validators.required,
-    Validators.minLength(4),
-    Validators.maxLength(12),
-    Validators.pattern(/^[a-zA-Z0-9]+$/)
+    Validators.minLength(6),
+    Validators.maxLength(64),
+    Validators.pattern(/^[a-fA-F0-9]+$/)
   ]);
 
   startScanning() {
