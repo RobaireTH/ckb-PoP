@@ -134,13 +134,42 @@ export class PoapService {
   }
 
   async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
-    // Generate event ID
-    const eventId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const nonce = crypto.randomUUID();
 
-    // Create event anchor on-chain (optional but strengthens decentralization)
+    // Sign creation intent with wallet
+    const message = `CKB-PoP-CreateEvent|${nonce}`;
+    const signature = await this.walletService.signMessage(message);
+
+    // Submit to backend — gets cryptographic event ID
+    const res = await fetch(`${this.backendUrl}/events/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creator_address: issuerAddress,
+        creator_signature: signature,
+        nonce,
+        metadata: {
+          name: eventData.name,
+          description: eventData.description || '',
+          image_url: eventData.imageUrl || null,
+          location: eventData.location || null,
+          start_time: eventData.date || null,
+          end_time: null,
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to create event' }));
+      throw new Error(err.error || 'Failed to create event');
+    }
+
+    const activeEvent = await res.json();
+    const eventId = activeEvent.event_id;
+
+    // Optional: create on-chain anchor using the backend-derived ID
     let anchorTxHash: string | undefined;
     try {
-      // Hash of event metadata for on-chain reference
       const metadataJson = JSON.stringify({
         name: eventData.name,
         date: eventData.date,
@@ -159,27 +188,21 @@ export class PoapService {
       );
     } catch (e) {
       console.warn("Event anchor creation failed (non-critical):", e);
-      // Continue without anchor - events can still work without on-chain anchor
     }
 
     const newEvent: PoPEvent = {
-        id: eventId,
-        name: eventData.name,
-        date: eventData.date,
-        location: eventData.location,
-        issuer: issuerAddress,
-        description: eventData.description,
-        imageUrl: eventData.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
-        anchorTxHash
+      id: eventId,
+      name: eventData.name,
+      date: eventData.date,
+      location: eventData.location,
+      issuer: issuerAddress,
+      description: eventData.description,
+      imageUrl: eventData.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
+      anchorTxHash
     };
 
     this.eventsSignal.update(evts => [newEvent, ...evts]);
-
-    if (anchorTxHash) {
-      this.toast.success(`Event anchored on-chain: ${newEvent.name}`);
-    } else {
-      this.toast.success(`Event created: ${newEvent.name}`);
-    }
+    this.toast.success(`Event created: ${newEvent.name}`);
 
     return newEvent;
   }

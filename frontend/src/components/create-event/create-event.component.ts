@@ -165,8 +165,11 @@ type CreateStep = 'form' | 'creating' | 'success';
 
               <div class="p-4">
                 <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider mb-2">Protocol ID</div>
-                <div class="bg-zinc-950 border border-white/[0.04] p-3 mb-4">
-                  <div class="font-mono text-lg text-lime-400 tracking-wider text-center">{{ createdEvent()?.id }}</div>
+                <button (click)="copyId()" class="w-full bg-zinc-950 border border-white/[0.04] p-3 mb-1 cursor-pointer hover:border-lime-400/20 transition-colors group">
+                  <div class="font-mono text-sm text-lime-400 tracking-wider text-center break-all">{{ createdEvent()?.id }}</div>
+                </button>
+                <div class="font-mono text-[8px] uppercase tracking-wider mb-4 text-center" [class.text-lime-400]="copied()" [class.text-zinc-600]="!copied()">
+                  {{ copied() ? 'Copied!' : 'Tap to copy' }}
                 </div>
                 <div class="font-mono text-[9px] text-zinc-500 uppercase tracking-wider mb-4 text-center">
                   Distribute to attendees for badge minting
@@ -224,6 +227,7 @@ export class CreateEventComponent {
   currentStep = signal<CreateStep>('form');
   createdEvent = signal<PoPEvent | null>(null);
   uploadedImage = signal<string | null>(null);
+  copied = signal(false);
 
   form = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100)]],
@@ -266,6 +270,26 @@ export class CreateEventComponent {
       console.error(err);
       this.currentStep.set('form');
     });
+  }
+
+  async copyId() {
+    const id = this.createdEvent()?.id;
+    if (!id) return;
+    try {
+      await navigator.clipboard.writeText(id);
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = id;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      this.copied.set(true);
+      setTimeout(() => this.copied.set(false), 2000);
+    }
   }
 
   reset() {
