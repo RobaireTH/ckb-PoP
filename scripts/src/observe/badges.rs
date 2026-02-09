@@ -74,8 +74,6 @@ pub async fn store_badge_observation(
 pub enum BadgeObserveError {
     #[error("cache error: {0}")]
     Cache(#[from] sqlx::Error),
-    #[error("badge not found")]
-    NotFound,
 }
 
 #[cfg(test)]

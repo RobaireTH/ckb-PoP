@@ -7,13 +7,14 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 
-use crate::crypto::qr;
-use crate::observe::{self, ObserveError};
+use crate::crypto::{qr, signatures};
+use crate::observe::{self, ObserveError, PaymentObserveError};
 use crate::relay::{self, RelayError};
 use crate::state::AppState;
 use crate::types::{
-    ActiveEvent, AttendanceProof, EventIdPreimage, EventMetadata, HealthResponse, PaymentIntent,
+    ActiveEvent, BadgeObservation, EventIdPreimage, EventMetadata, HealthResponse, PaymentIntent,
     QrPayload, QrResponse, WindowProof,
 };
 
@@ -31,6 +32,8 @@ pub fn router() -> Router<AppState> {
         .route("/badges/observe", get(observe_badges))
         .route("/badges/build", post(build_badge))
         .route("/badges/broadcast", post(broadcast_badge))
+        .route("/payments/:tx_hash", get(get_payment))
+        .route("/qr/parse", get(parse_qr))
 }
 
 async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
@@ -45,6 +48,9 @@ async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
     } else {
         "unavailable"
     };
+
+    // Opportunistically clean up expired replay log entries.
+    let _ = state.cache.cleanup_expired_replay_log(Utc::now() - Duration::hours(24)).await;
 
     Json(HealthResponse {
         status: "operational".to_string(),
@@ -91,7 +97,7 @@ async fn submit_intent(
 
     let event_id = observe::submit_payment_intent(&state.cache, intent)
         .await
-        .map_err(|e| AppError::Observe(e))?;
+        .map_err(AppError::Observe)?;
 
     Ok(Json(IntentResponse {
         event_id,
@@ -165,8 +171,20 @@ async fn submit_window(
     Path(event_id): Path<String>,
     Json(req): Json<WindowRequest>,
 ) -> Result<Json<WindowProof>, AppError> {
+    // Verify the creator's signature over the window parameters.
+    let event = state
+        .cache
+        .get_active_event(&event_id)
+        .await
+        .map_err(|e| AppError::Observe(ObserveError::Cache(e)))?
+        .ok_or(AppError::Observe(ObserveError::NotFound))?;
+
+    let message = WindowProof::message_to_sign(&event_id, req.window_start, req.window_end);
+    signatures::verify_ckb_address_signature(&message, &req.creator_signature, &event.creator_address)
+        .map_err(|_| AppError::InvalidSignature)?;
+
     let window_secret = qr::derive_window_secret(&event_id, req.window_start, &req.creator_signature);
-    let commitment = hex::encode(sha2::Sha256::digest(&window_secret));
+    let commitment = hex::encode(sha2::Sha256::digest(window_secret));
 
     let window = WindowProof {
         event_id: event_id.clone(),
@@ -182,8 +200,6 @@ async fn submit_window(
 
     Ok(Json(window))
 }
-
-use sha2::Digest;
 
 async fn get_qr(
     State(state): State<AppState>,
@@ -229,6 +245,17 @@ async fn activate_event(
     Path(event_id): Path<String>,
     Json(req): Json<ActivateRequest>,
 ) -> Result<Json<ActiveEvent>, AppError> {
+    // Check if already activated via a prior payment observation.
+    if let Some(_existing) = state.cache.get_payment_observation(&event_id)
+        .await
+        .map_err(|e| AppError::Observe(ObserveError::Cache(e)))? {
+        let event = state.cache.get_active_event(&event_id)
+            .await
+            .map_err(|e| AppError::Observe(ObserveError::Cache(e)))?
+            .ok_or(AppError::Observe(ObserveError::NotFound))?;
+        return Ok(Json(event));
+    }
+
     let event = observe::activate_event_from_payment(&state.cache, &state.rpc, &event_id, &req.tx_hash)
         .await
         .map_err(AppError::Observe)?;
@@ -267,9 +294,25 @@ async fn build_badge(
     State(state): State<AppState>,
     Json(req): Json<relay::BuildBadgeTxRequest>,
 ) -> Result<Json<relay::BuildBadgeTxResponse>, AppError> {
+    let event_id = req.event_id.clone();
+    let holder_address = req.address.clone();
+
     let response = relay::build_badge_tx(&state.cache, &state.rpc, req)
         .await
         .map_err(AppError::Relay)?;
+
+    // Record a pending badge observation so badge-holders queries reflect
+    // the mint intent immediately, before on-chain confirmation.
+    let badge = BadgeObservation {
+        event_id,
+        holder_address,
+        mint_tx_hash: response.tx_hash.clone(),
+        mint_block_number: 0,
+        verified_at_block: 0,
+        observed_at: Utc::now(),
+    };
+    let _ = observe::store_badge_observation(&state.cache, badge).await;
+
     Ok(Json(response))
 }
 
@@ -283,13 +326,71 @@ async fn broadcast_badge(
     Ok(Json(response))
 }
 
+async fn get_payment(
+    State(state): State<AppState>,
+    Path(tx_hash): Path<String>,
+    Query(query): Query<VerifyQuery>,
+) -> Result<Json<observe::PaymentStatusResponse>, AppError> {
+    let response = observe::observe_payment(&state.cache, &state.rpc, &tx_hash, query.verify)
+        .await
+        .map_err(AppError::PaymentObserve)?;
+    Ok(Json(response))
+}
+
+#[derive(Deserialize)]
+pub struct QrParseQuery {
+    pub data: String,
+}
+
+#[derive(Serialize)]
+pub struct QrParseResponse {
+    pub event_id: String,
+    pub timestamp: i64,
+    pub valid: bool,
+}
+
+async fn parse_qr(
+    State(state): State<AppState>,
+    Query(query): Query<QrParseQuery>,
+) -> Result<Json<QrParseResponse>, AppError> {
+    let payload = QrPayload::parse(&query.data)
+        .ok_or(AppError::InvalidQrData)?;
+
+    // Validate HMAC if the event exists and has an open window.
+    let valid = if let Some(event) = state.cache.get_active_event(&payload.event_id)
+        .await
+        .map_err(|e| AppError::Observe(ObserveError::Cache(e)))? {
+        if let Some(window) = event.window.as_ref() {
+            let window_secret = qr::derive_window_secret(
+                &payload.event_id,
+                window.window_start,
+                &window.creator_signature,
+            );
+            qr::verify_qr_hmac(&window_secret, payload.timestamp, &payload.hmac)
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    Ok(Json(QrParseResponse {
+        event_id: payload.event_id,
+        timestamp: payload.timestamp,
+        valid,
+    }))
+}
+
 #[derive(Debug)]
 pub enum AppError {
     Observe(ObserveError),
     BadgeObserve(observe::BadgeObserveError),
+    PaymentObserve(PaymentObserveError),
     Relay(RelayError),
     WindowNotOpen,
     WindowClosed,
+    InvalidSignature,
+    InvalidQrData,
 }
 
 impl IntoResponse for AppError {
@@ -299,7 +400,12 @@ impl IntoResponse for AppError {
             AppError::Observe(ObserveError::PaymentNotFound) => (StatusCode::NOT_FOUND, "payment not found"),
             AppError::Observe(ObserveError::PaymentNotConfirmed) => (StatusCode::BAD_REQUEST, "payment not confirmed"),
             AppError::Observe(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
-            AppError::BadgeObserve(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
+            AppError::BadgeObserve(e) => {
+                tracing::error!("Badge observe error: {e}");
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal error")
+            }
+            AppError::PaymentObserve(PaymentObserveError::NotFound) => (StatusCode::NOT_FOUND, "payment not found"),
+            AppError::PaymentObserve(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
             AppError::Relay(RelayError::EventNotFound) => (StatusCode::NOT_FOUND, "event not found"),
             AppError::Relay(RelayError::WindowNotOpen) => (StatusCode::FORBIDDEN, "window not open"),
             AppError::Relay(RelayError::WindowClosed) => (StatusCode::FORBIDDEN, "window closed"),
@@ -309,6 +415,8 @@ impl IntoResponse for AppError {
             AppError::Relay(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
             AppError::WindowNotOpen => (StatusCode::FORBIDDEN, "window not open"),
             AppError::WindowClosed => (StatusCode::FORBIDDEN, "window closed"),
+            AppError::InvalidSignature => (StatusCode::UNAUTHORIZED, "invalid creator signature"),
+            AppError::InvalidQrData => (StatusCode::BAD_REQUEST, "invalid QR data format"),
         };
 
         let body = serde_json::json!({ "error": message });

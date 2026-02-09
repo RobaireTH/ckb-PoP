@@ -38,14 +38,6 @@ impl CkbRpcClient {
         }
     }
 
-    pub fn testnet() -> Self {
-        Self::new("https://testnet.ckb.dev/rpc")
-    }
-
-    pub fn mainnet() -> Self {
-        Self::new("https://mainnet.ckb.dev/rpc")
-    }
-
     async fn call(&self, method: &str, params: Value) -> Result<Value, RpcError> {
         let body = json!({
             "jsonrpc": "2.0",

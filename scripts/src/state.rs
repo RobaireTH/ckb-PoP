@@ -19,8 +19,4 @@ impl AppState {
             rpc: Arc::new(rpc),
         })
     }
-
-    pub async fn new_testnet(database_url: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        Self::new(database_url, "https://testnet.ckb.dev/rpc").await
-    }
 }

@@ -2,8 +2,11 @@ use chrono::{DateTime, Utc};
 use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite};
 
 use crate::types::{
-    ActiveEvent, BadgeObservation, EventMetadata, PaymentIntent, PaymentObservation, WindowProof,
+    ActiveEvent, BadgeObservation, PaymentIntent, PaymentObservation, WindowProof,
 };
+
+/// Row type returned by active_events queries.
+type EventRow = (String, String, String, String, i64, String, Option<String>);
 
 pub struct Cache {
     pool: Pool<Sqlite>,
@@ -154,6 +157,24 @@ impl Cache {
         }))
     }
 
+    pub async fn get_payment_observation_by_tx(&self, tx_hash: &str) -> Result<Option<PaymentObservation>, sqlx::Error> {
+        let row: Option<(String, String, i64, String)> = sqlx::query_as(
+            "SELECT event_id, payment_tx_hash, payment_block_number, observed_at FROM payment_observations WHERE payment_tx_hash = ?",
+        )
+        .bind(tx_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|(event_id, payment_tx_hash, payment_block_number, observed_at)| {
+            PaymentObservation {
+                event_id,
+                payment_tx_hash,
+                payment_block_number: payment_block_number as u64,
+                observed_at: DateTime::parse_from_rfc3339(&observed_at).unwrap().with_timezone(&Utc),
+            }
+        }))
+    }
+
     pub async fn store_active_event(&self, event: &ActiveEvent) -> Result<(), sqlx::Error> {
         let window_json = event.window.as_ref().map(|w| serde_json::to_string(w).unwrap());
         sqlx::query(
@@ -172,7 +193,7 @@ impl Cache {
     }
 
     pub async fn get_active_event(&self, event_id: &str) -> Result<Option<ActiveEvent>, sqlx::Error> {
-        let row: Option<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
+        let row: Option<EventRow> = sqlx::query_as(
             "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events WHERE event_id = ?",
         )
         .bind(event_id)
@@ -197,7 +218,7 @@ impl Cache {
     /// Returns an error if multiple events match (ambiguous prefix).
     pub async fn get_active_event_by_prefix(&self, prefix: &str) -> Result<Option<ActiveEvent>, sqlx::Error> {
         let pattern = format!("{}%", prefix);
-        let rows: Vec<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
+        let rows: Vec<EventRow> = sqlx::query_as(
             "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events WHERE event_id LIKE ? LIMIT 2",
         )
         .bind(&pattern)
@@ -223,7 +244,7 @@ impl Cache {
     }
 
     pub async fn list_active_events(&self) -> Result<Vec<ActiveEvent>, sqlx::Error> {
-        let rows: Vec<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
+        let rows: Vec<EventRow> = sqlx::query_as(
             "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events",
         )
         .fetch_all(&self.pool)

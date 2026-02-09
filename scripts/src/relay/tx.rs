@@ -146,8 +146,6 @@ pub enum RelayError {
     ReplayDetected,
     #[error("invalid signature")]
     InvalidSignature,
-    #[error("rpc error: {0}")]
-    Rpc(String),
 }
 
 #[cfg(test)]

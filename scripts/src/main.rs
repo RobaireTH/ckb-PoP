@@ -26,7 +26,7 @@ async fn main() {
     // Load network-specific env file: .env.testnet, .env.mainnet, or .env.devnet
     let ckb_network = std::env::var("CKB_NETWORK").unwrap_or_else(|_| "testnet".to_string());
     let env_file = format!(".env.{}", ckb_network);
-    if let Err(_) = dotenvy::from_filename(&env_file) {
+    if dotenvy::from_filename(&env_file).is_err() {
         tracing::warn!("No {} found, using defaults for {}", env_file, ckb_network);
     }
 
