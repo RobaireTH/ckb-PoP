@@ -192,6 +192,36 @@ impl Cache {
         }))
     }
 
+    /// Look up an active event by prefix of its event_id.
+    /// Returns the event if exactly one match is found.
+    /// Returns an error if multiple events match (ambiguous prefix).
+    pub async fn get_active_event_by_prefix(&self, prefix: &str) -> Result<Option<ActiveEvent>, sqlx::Error> {
+        let pattern = format!("{}%", prefix);
+        let rows: Vec<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
+            "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events WHERE event_id LIKE ? LIMIT 2",
+        )
+        .bind(&pattern)
+        .fetch_all(&self.pool)
+        .await?;
+
+        if rows.len() > 1 {
+            // Ambiguous prefix - caller should handle this
+            return Ok(None);
+        }
+
+        Ok(rows.into_iter().next().map(|(event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json)| {
+            ActiveEvent {
+                event_id,
+                metadata: serde_json::from_str(&metadata_json).unwrap(),
+                creator_address,
+                payment_tx_hash,
+                payment_block_number: payment_block_number as u64,
+                activated_at: DateTime::parse_from_rfc3339(&activated_at).unwrap().with_timezone(&Utc),
+                window: window_json.map(|w| serde_json::from_str(&w).unwrap()),
+            }
+        }))
+    }
+
     pub async fn list_active_events(&self) -> Result<Vec<ActiveEvent>, sqlx::Error> {
         let rows: Vec<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
             "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events",
@@ -574,5 +604,65 @@ mod tests {
         assert_eq!(deleted, 2);
 
         assert!(!cache.check_qr_replay("evt1", 1000).await.unwrap());
+    }
+
+    // --- Prefix Lookup ---
+
+    #[tokio::test]
+    async fn test_get_active_event_by_prefix_exact_match() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "abcdef1234567890".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 200,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let loaded = cache.get_active_event_by_prefix("abcdef").await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().event_id, "abcdef1234567890");
+    }
+
+    #[tokio::test]
+    async fn test_get_active_event_by_prefix_no_match() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "abcdef1234567890".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 200,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let loaded = cache.get_active_event_by_prefix("zzz").await.unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_get_active_event_by_prefix_ambiguous() {
+        let cache = test_cache().await;
+        for suffix in &["aaa", "bbb"] {
+            let event = ActiveEvent {
+                event_id: format!("abc{}", suffix),
+                metadata: test_metadata(),
+                creator_address: "ckt1q".to_string(),
+                payment_tx_hash: "0xtx".to_string(),
+                payment_block_number: 200,
+                activated_at: Utc::now(),
+                window: None,
+            };
+            cache.store_active_event(&event).await.unwrap();
+        }
+
+        // "abc" matches both "abcaaa" and "abcbbb" — returns None (ambiguous)
+        let loaded = cache.get_active_event_by_prefix("abc").await.unwrap();
+        assert!(loaded.is_none());
     }
 }

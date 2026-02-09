@@ -36,11 +36,20 @@ pub async fn observe_event(
     event_id: &str,
     verify: bool,
 ) -> Result<EventDetailResponse, ObserveError> {
-    let event = cache
-        .get_active_event(event_id)
-        .await
-        .map_err(ObserveError::Cache)?
-        .ok_or(ObserveError::NotFound)?;
+    // Support prefix lookup for short IDs (< 64 hex chars)
+    let event = if event_id.len() < 64 {
+        cache
+            .get_active_event_by_prefix(event_id)
+            .await
+            .map_err(ObserveError::Cache)?
+            .ok_or(ObserveError::NotFound)?
+    } else {
+        cache
+            .get_active_event(event_id)
+            .await
+            .map_err(ObserveError::Cache)?
+            .ok_or(ObserveError::NotFound)?
+    };
 
     let verified_at_block = if verify {
         rpc.get_tip_block_number().await.ok()
