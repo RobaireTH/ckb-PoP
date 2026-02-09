@@ -1,5 +1,4 @@
 import { Injectable, signal, inject, computed } from '@angular/core';
-import { GoogleGenAI } from "@google/genai";
 import { WalletService } from './wallet.service';
 import { ToastService } from './toast.service';
 import { ContractService, ChainRejectionError } from './contract.service';
@@ -22,7 +21,6 @@ export interface Badge {
   mintDate: string;
   txHash: string;
   imageUrl: string;
-  aiDescription?: string;
   role: 'Attendee' | 'Organizer' | 'Certificate';
   blockNumber?: number;
 }
@@ -56,26 +54,32 @@ export class PoapService {
   });
 
   async getEventByCode(code: string): Promise<PoPEvent> {
-    // Handle Dynamic QR Codes format: "eventId|timestamp"
+    // Handle QR formats:
+    //   Simple ID:    "eventId"
+    //   Unsigned QR:  "eventId|timestamp"        (fallback, no HMAC)
+    //   Signed QR:    "eventId|timestamp|hmac"   (backend-signed)
     let targetId = code;
     let isDynamic = false;
-    let timestamp = 0;
+    let timestampMs = 0;
 
     if (code.includes('|')) {
       const parts = code.split('|');
       targetId = parts[0];
-      timestamp = parseInt(parts[1], 10);
+      const rawTs = parseInt(parts[1], 10);
       isDynamic = true;
+
+      // Normalize timestamp: backend sends seconds, fallback sends seconds too.
+      // Detect by digit count: <1e12 = seconds, >=1e12 = milliseconds.
+      timestampMs = rawTs < 1e12 ? rawTs * 1000 : rawTs;
     }
 
-    // Logic: If dynamic, check for expiration (e.g., code valid for 60 seconds)
+    // Dynamic QR expiry check (60 second validity window)
     if (isDynamic) {
       const now = Date.now();
-      // Allow 60 seconds drift/validity window
-      if (now - timestamp > 60000) {
+      if (now - timestampMs > 60000) {
         throw new Error('QR Code Expired. Please scan the live screen again.');
       }
-      if (timestamp > now + 10000) {
+      if (timestampMs > now + 10000) {
         throw new Error('Invalid Time Check.');
       }
     }
@@ -225,22 +229,6 @@ export class PoapService {
   }
 
   async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
-    // Generate AI description first (non-blocking)
-    let aiDesc = "Verified proof of attendance.";
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env['API_KEY'] });
-      const model = 'gemini-2.5-flash';
-      const response = await ai.models.generateContent({
-        model,
-        contents: `Generate a short, cryptic, and cool 1-sentence description for a digital collectible badge awarded for attending "${event.name}". It should sound like a rare RPG item description.`,
-      });
-      if (response.text) {
-        aiDesc = response.text.trim();
-      }
-    } catch (e) {
-      console.warn("AI generation failed, using default", e);
-    }
-
     // Mint badge on-chain via ContractService
     // The TYPE SCRIPT enforces uniqueness - if badge exists, chain rejects
     let txHash: string;
@@ -266,7 +254,6 @@ export class PoapService {
       mintDate: new Date().toISOString(),
       txHash,
       imageUrl: event.imageUrl || `https://picsum.photos/seed/${event.id}/400/400`,
-      aiDescription: aiDesc,
       role: 'Attendee'
     };
 

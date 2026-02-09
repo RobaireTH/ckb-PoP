@@ -2,12 +2,14 @@ import { Component, inject, signal, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { PoapService, PoPEvent } from '../../services/poap.service';
+import { WalletService } from '../../services/wallet.service';
+import { WalletModalComponent } from '../wallet-modal/wallet-modal.component';
 import QRCode from 'qrcode';
 
 @Component({
   selector: 'app-live-qr',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, WalletModalComponent],
   template: `
     <div class="min-h-screen bg-black flex items-center justify-center p-4">
       <div class="w-full max-w-lg border border-white/[0.04]">
@@ -32,40 +34,61 @@ import QRCode from 'qrcode';
               </div>
               <div class="text-right">
                 <div class="font-mono text-[8px] text-zinc-600 uppercase tracking-wider">ID</div>
-                <div class="font-mono text-xs text-zinc-400">{{ event()?.id }}</div>
+                <div class="font-mono text-xs text-zinc-400">{{ event()?.id?.slice(0, 8) }}...</div>
               </div>
             </div>
           </div>
 
-          <!-- QR Code -->
-          <div class="p-6 flex justify-center">
-            <div class="relative">
-              <!-- Corner Brackets -->
-              <div class="absolute -top-2 -left-2 w-4 h-4 border-l border-t border-lime-400"></div>
-              <div class="absolute -top-2 -right-2 w-4 h-4 border-r border-t border-lime-400"></div>
-              <div class="absolute -bottom-2 -left-2 w-4 h-4 border-l border-b border-lime-400"></div>
-              <div class="absolute -bottom-2 -right-2 w-4 h-4 border-r border-b border-lime-400"></div>
+          @if (needsWallet()) {
+            <!-- Creator must connect wallet to sign attendance window -->
+            <div class="p-6 text-center">
+              <div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mb-3">
+                Connect wallet to start attendance window
+              </div>
+              <button (click)="showModal.set(true)" class="inline-flex items-center gap-2 px-4 py-2 bg-lime-400 text-black font-mono text-[10px] font-semibold uppercase tracking-wider">
+                <span>Connect Wallet</span>
+              </button>
+            </div>
+          } @else if (windowError()) {
+            <div class="p-6 text-center">
+              <div class="font-mono text-[10px] text-red-400 uppercase tracking-wider mb-1">Window Error</div>
+              <div class="font-mono text-[9px] text-zinc-500">{{ windowError() }}</div>
+              <button (click)="openWindow()" class="mt-3 font-mono text-[9px] text-lime-400 uppercase tracking-wider hover:underline">
+                Retry
+              </button>
+            </div>
+          } @else {
 
-              @if (qrUrl()) {
-                <img [src]="qrUrl()" class="w-56 h-56 bg-white p-2" alt="QR">
-              } @else {
-                <div class="w-56 h-56 bg-zinc-900 flex items-center justify-center">
-                  <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider animate-pulse">Generating...</div>
-                </div>
-              }
-            </div>
-          </div>
+            <!-- QR Code -->
+            <div class="p-6 flex justify-center">
+              <div class="relative">
+                <!-- Corner Brackets -->
+                <div class="absolute -top-2 -left-2 w-4 h-4 border-l border-t border-lime-400"></div>
+                <div class="absolute -top-2 -right-2 w-4 h-4 border-r border-t border-lime-400"></div>
+                <div class="absolute -bottom-2 -left-2 w-4 h-4 border-l border-b border-lime-400"></div>
+                <div class="absolute -bottom-2 -right-2 w-4 h-4 border-r border-b border-lime-400"></div>
 
-          <!-- Timer -->
-          <div class="px-6 pb-4">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Key Validity</span>
-              <span class="font-mono text-xs text-white">{{ secondsLeft() }}s</span>
+                @if (qrUrl()) {
+                  <img [src]="qrUrl()" class="w-56 h-56 bg-white p-2" alt="QR">
+                } @else {
+                  <div class="w-56 h-56 bg-zinc-900 flex items-center justify-center">
+                    <div class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider animate-pulse">Generating...</div>
+                  </div>
+                }
+              </div>
             </div>
-            <div class="h-1 bg-zinc-900 overflow-hidden">
-              <div class="h-full bg-lime-400 transition-all duration-1000" [style.width.%]="progress()"></div>
+
+            <!-- Timer -->
+            <div class="px-6 pb-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono text-[9px] text-zinc-600 uppercase tracking-wider">Key Validity</span>
+                <span class="font-mono text-xs text-white">{{ secondsLeft() }}s</span>
+              </div>
+              <div class="h-1 bg-zinc-900 overflow-hidden">
+                <div class="h-full bg-lime-400 transition-all duration-1000" [style.width.%]="progress()"></div>
+              </div>
             </div>
-          </div>
+          }
 
           <!-- Footer -->
           <div class="px-4 py-3 border-t border-white/[0.04] bg-zinc-950">
@@ -81,20 +104,30 @@ import QRCode from 'qrcode';
 
       </div>
     </div>
+
+    @if (showModal()) {
+      <app-wallet-modal (close)="onWalletModalClose()"></app-wallet-modal>
+    }
   `
 })
 export class LiveQrComponent implements OnInit, OnDestroy {
   route = inject(ActivatedRoute);
   router = inject(Router);
   poapService = inject(PoapService);
+  walletService = inject(WalletService);
 
   event = signal<PoPEvent | null>(null);
   qrUrl = signal<string | null>(null);
   progress = signal(100);
-  secondsLeft = signal(15);
+  secondsLeft = signal(30);
+  needsWallet = signal(false);
+  windowError = signal<string | null>(null);
+  showModal = signal(false);
 
-  private intervalId: any;
-  private readonly REFRESH_RATE = 15;
+  private intervalId: ReturnType<typeof setInterval> | null = null;
+  private refreshRate = 30;
+
+  private readonly backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
@@ -109,34 +142,95 @@ export class LiveQrComponent implements OnInit, OnDestroy {
       return;
     }
     this.event.set(ev);
-    this.startRotation();
+    await this.openWindow();
   }
 
   ngOnDestroy() {
     if (this.intervalId) clearInterval(this.intervalId);
   }
 
-  startRotation() {
-    this.updateQr();
+  onWalletModalClose() {
+    this.showModal.set(false);
+    // Retry after wallet connection
+    if (this.walletService.isConnected()) {
+      this.openWindow();
+    }
+  }
+
+  async openWindow() {
+    this.windowError.set(null);
+    this.needsWallet.set(false);
+
+    if (!this.walletService.isConnected()) {
+      this.needsWallet.set(true);
+      return;
+    }
+
+    const ev = this.event();
+    if (!ev) return;
+
+    try {
+      const windowStart = Math.floor(Date.now() / 1000);
+      const message = `CKB-PoP-Window|${ev.id}|${windowStart}|open`;
+      const signature = await this.walletService.signMessage(message);
+
+      const res = await fetch(`${this.backendUrl}/events/${ev.id}/window`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          window_start: windowStart,
+          window_end: null,
+          creator_signature: signature,
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to open window' }));
+        this.windowError.set(err.error || 'Failed to open attendance window.');
+        return;
+      }
+
+      this.startRotation();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to open attendance window.';
+      this.windowError.set(message);
+    }
+  }
+
+  private startRotation() {
+    this.fetchQr();
     let tick = 0;
     this.intervalId = setInterval(() => {
       tick++;
-      const remaining = this.REFRESH_RATE - tick;
+      const remaining = this.refreshRate - tick;
       this.secondsLeft.set(remaining);
-      this.progress.set((remaining / this.REFRESH_RATE) * 100);
+      this.progress.set((remaining / this.refreshRate) * 100);
 
-      if (tick >= this.REFRESH_RATE) {
-        this.updateQr();
+      if (tick >= this.refreshRate) {
+        this.fetchQr();
         tick = 0;
       }
     }, 1000);
   }
 
-  async updateQr() {
-    if (!this.event()) return;
-    const payload = `${this.event()?.id}|${Date.now()}`;
+  private async fetchQr() {
+    const ev = this.event();
+    if (!ev) return;
+
     try {
-      const dataUrl = await QRCode.toDataURL(payload, {
+      const res = await fetch(`${this.backendUrl}/events/${ev.id}/qr`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Backend unreachable' }));
+        this.windowError.set(err.error || 'Failed to fetch QR code.');
+        if (this.intervalId) clearInterval(this.intervalId);
+        this.intervalId = null;
+        return;
+      }
+
+      const data = await res.json();
+      this.refreshRate = data.ttl_seconds || 30;
+
+      const dataUrl = await QRCode.toDataURL(data.qr_data, {
         width: 300,
         margin: 1,
         color: { dark: '#0f172a', light: '#ffffff' },
@@ -144,9 +238,13 @@ export class LiveQrComponent implements OnInit, OnDestroy {
       });
       this.qrUrl.set(dataUrl);
     } catch {
-      this.qrUrl.set(null);
+      this.windowError.set('Backend unreachable. Cannot generate signed QR codes.');
+      if (this.intervalId) clearInterval(this.intervalId);
+      this.intervalId = null;
+      return;
     }
-    this.secondsLeft.set(this.REFRESH_RATE);
+
+    this.secondsLeft.set(this.refreshRate);
     this.progress.set(100);
   }
 }
