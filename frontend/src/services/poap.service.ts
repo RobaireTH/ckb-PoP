@@ -247,6 +247,13 @@ export class PoapService {
       throw err;
     }
 
+    // Notify backend of the real on-chain mint (fire-and-forget).
+    fetch(`${this.backendUrl}/badges/record`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_id: event.id, holder_address: address, tx_hash: txHash }),
+    }).catch(() => { /* Backend notification is non-critical. */ });
+
     const newBadge: Badge = {
       id: crypto.randomUUID(),
       eventId: event.id,
@@ -259,7 +266,35 @@ export class PoapService {
 
     this.badgesSignal.update(badges => [newBadge, ...badges]);
     this.toast.success(`Badge minted for ${event.name}`);
+
+    // Start polling for block confirmation in the background.
+    this.pollForConfirmation(txHash);
+
     return newBadge;
+  }
+
+  /**
+   * Poll the backend for transaction confirmation.
+   * Updates the badge's blockNumber once the tx is committed on-chain.
+   */
+  private async pollForConfirmation(txHash: string): Promise<void> {
+    const poll = async () => {
+      try {
+        const res = await fetch(`${this.backendUrl}/tx/${txHash}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.confirmed && data.block_number) {
+          this.badgesSignal.update(badges =>
+            badges.map(b => b.txHash === txHash ? { ...b, blockNumber: data.block_number } : b)
+          );
+          return; // Confirmed — stop polling.
+        }
+      } catch {
+        // Backend unreachable — will retry.
+      }
+      setTimeout(poll, 10_000);
+    };
+    setTimeout(poll, 5_000); // First check after 5 seconds.
   }
 
   /**
@@ -300,7 +335,7 @@ export class PoapService {
           txHash: obs.mint_tx_hash,
           imageUrl: event?.imageUrl || `https://picsum.photos/seed/${obs.event_id}/400/400`,
           role: 'Attendee',
-          blockNumber: obs.mint_block_number,
+          blockNumber: obs.mint_block_number || undefined,
         });
       }
 
@@ -309,8 +344,54 @@ export class PoapService {
         b => !backendBadges.some(bb => bb.txHash === b.txHash)
       );
       this.badgesSignal.set([...backendBadges, ...localOnly]);
+
+      // Start polling for any unconfirmed badges.
+      for (const badge of backendBadges) {
+        if (!badge.blockNumber) {
+          this.pollForConfirmation(badge.txHash);
+        }
+      }
     } catch {
       // Backend unreachable — keep local badges only
+    }
+  }
+
+  /**
+   * Load events created by the given address from the backend.
+   * Populates the eventsSignal so myCreatedEvents works across sessions.
+   */
+  async loadMyEventsFromBackend(address: string): Promise<void> {
+    try {
+      const res = await fetch(`${this.backendUrl}/events`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const events: PoPEvent[] = (data.events || [])
+        .filter((e: { creator_address: string }) => e.creator_address === address)
+        .map((e: {
+          event_id: string;
+          metadata: { name: string; start_time?: string; description?: string; image_url?: string; location?: string };
+          activated_at: string;
+          creator_address: string;
+          payment_tx_hash?: string;
+        }) => ({
+          id: e.event_id,
+          name: e.metadata.name,
+          date: e.metadata.start_time || e.activated_at,
+          issuer: e.creator_address,
+          location: e.metadata.location || '',
+          description: e.metadata.description,
+          imageUrl: e.metadata.image_url,
+          anchorTxHash: e.payment_tx_hash,
+        }));
+
+      // Merge with locally-created events to avoid duplicates.
+      const existingIds = new Set(this.eventsSignal().map(e => e.id));
+      const newFromBackend = events.filter(e => !existingIds.has(e.id));
+      if (newFromBackend.length > 0) {
+        this.eventsSignal.update(existing => [...existing, ...newFromBackend]);
+      }
+    } catch {
+      // Backend unreachable — keep local events only.
     }
   }
 }
