@@ -441,7 +441,10 @@ export class GalleryComponent implements OnInit {
     this.loading.set(true);
     const address = this.walletService.address();
     if (address) {
-      await this.poapService.loadBadgesFromBackend(address);
+      await Promise.all([
+        this.poapService.loadBadgesFromBackend(address),
+        this.poapService.loadMyEventsFromBackend(address),
+      ]);
     }
     this.loading.set(false);
   }

@@ -52,7 +52,7 @@ pub fn validate_qr_freshness(qr_timestamp: i64, window_start: i64, window_end: O
     }
 
     let age = now - qr_timestamp;
-    age >= 0 && age <= QR_TTL_SECONDS * 2
+    (0..=QR_TTL_SECONDS * 2).contains(&age)
 }
 
 pub fn qr_ttl_seconds() -> u32 {

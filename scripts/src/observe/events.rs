@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cache::Cache;
 use crate::rpc::CkbRpcClient;
-use crate::types::{ActiveEvent, EventMetadata, PaymentIntent, PaymentObservation, WindowProof};
+use crate::types::{ActiveEvent, PaymentIntent, WindowProof};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EventListResponse {
@@ -36,11 +36,20 @@ pub async fn observe_event(
     event_id: &str,
     verify: bool,
 ) -> Result<EventDetailResponse, ObserveError> {
-    let event = cache
-        .get_active_event(event_id)
-        .await
-        .map_err(ObserveError::Cache)?
-        .ok_or(ObserveError::NotFound)?;
+    // Support prefix lookup for short IDs (< 64 hex chars)
+    let event = if event_id.len() < 64 {
+        cache
+            .get_active_event_by_prefix(event_id)
+            .await
+            .map_err(ObserveError::Cache)?
+            .ok_or(ObserveError::NotFound)?
+    } else {
+        cache
+            .get_active_event(event_id)
+            .await
+            .map_err(ObserveError::Cache)?
+            .ok_or(ObserveError::NotFound)?
+    };
 
     let verified_at_block = if verify {
         rpc.get_tip_block_number().await.ok()
@@ -91,17 +100,12 @@ pub async fn activate_event_from_payment(
 
     let block_number = tx_info.block_number.ok_or(ObserveError::PaymentNotConfirmed)?;
 
-    let observation = PaymentObservation {
-        event_id: event_id.to_string(),
-        payment_tx_hash: tx_hash.to_string(),
-        payment_block_number: block_number,
-        observed_at: Utc::now(),
-    };
-
-    cache
-        .store_payment_observation(&observation)
+    super::payments::record_payment_observation(cache, event_id, tx_hash, block_number)
         .await
-        .map_err(ObserveError::Cache)?;
+        .map_err(|e| match e {
+            super::PaymentObserveError::Cache(sql_err) => ObserveError::Cache(sql_err),
+            other => ObserveError::Rpc(other.to_string()),
+        })?;
 
     let active_event = ActiveEvent {
         event_id: event_id.to_string(),
@@ -179,6 +183,7 @@ pub enum ObserveError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::EventMetadata;
     use chrono::Utc;
 
     async fn test_cache() -> Cache {

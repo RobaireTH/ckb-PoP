@@ -7,6 +7,8 @@ mod rpc;
 mod state;
 mod types;
 
+use std::sync::Arc;
+
 use axum::Router;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
@@ -26,7 +28,7 @@ async fn main() {
     // Load network-specific env file: .env.testnet, .env.mainnet, or .env.devnet
     let ckb_network = std::env::var("CKB_NETWORK").unwrap_or_else(|_| "testnet".to_string());
     let env_file = format!(".env.{}", ckb_network);
-    if let Err(_) = dotenvy::from_filename(&env_file) {
+    if dotenvy::from_filename(&env_file).is_err() {
         tracing::warn!("No {} found, using defaults for {}", env_file, ckb_network);
     }
 
@@ -38,6 +40,26 @@ async fn main() {
     let state = AppState::new(&database_url, &ckb_rpc_url)
         .await
         .expect("Failed to initialize app state");
+
+    // Rehydrate badge data from the chain if a code hash is configured.
+    if let Ok(code_hash) = std::env::var("DOB_BADGE_CODE_HASH") {
+        let cache = Arc::clone(&state.cache);
+        let rpc = Arc::clone(&state.rpc);
+        observe::rehydrate_from_chain(&cache, &rpc, &code_hash).await;
+    }
+
+    // Spawn background task to confirm pending badges every 15 seconds.
+    {
+        let cache = Arc::clone(&state.cache);
+        let rpc = Arc::clone(&state.rpc);
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(15));
+            loop {
+                interval.tick().await;
+                observe::confirm_pending_badges(&cache, &rpc).await;
+            }
+        });
+    }
 
     let cors = CorsLayer::new()
         .allow_origin(Any)

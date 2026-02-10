@@ -58,7 +58,7 @@ pub struct WindowProof {
 impl WindowProof {
     pub fn is_open(&self) -> bool {
         let now = Utc::now().timestamp();
-        now >= self.window_start && self.window_end.map_or(true, |end| now < end)
+        now >= self.window_start && self.window_end.is_none_or(|end| now < end)
     }
 
     pub fn message_to_sign(event_id: &str, window_start: i64, window_end: Option<i64>) -> String {

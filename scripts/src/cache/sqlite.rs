@@ -2,8 +2,11 @@ use chrono::{DateTime, Utc};
 use sqlx::{sqlite::SqlitePoolOptions, Pool, Sqlite};
 
 use crate::types::{
-    ActiveEvent, BadgeObservation, EventMetadata, PaymentIntent, PaymentObservation, WindowProof,
+    ActiveEvent, BadgeObservation, PaymentIntent, PaymentObservation, WindowProof,
 };
+
+/// Row type returned by active_events queries.
+type EventRow = (String, String, String, String, i64, String, Option<String>);
 
 pub struct Cache {
     pool: Pool<Sqlite>,
@@ -154,6 +157,24 @@ impl Cache {
         }))
     }
 
+    pub async fn get_payment_observation_by_tx(&self, tx_hash: &str) -> Result<Option<PaymentObservation>, sqlx::Error> {
+        let row: Option<(String, String, i64, String)> = sqlx::query_as(
+            "SELECT event_id, payment_tx_hash, payment_block_number, observed_at FROM payment_observations WHERE payment_tx_hash = ?",
+        )
+        .bind(tx_hash)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(|(event_id, payment_tx_hash, payment_block_number, observed_at)| {
+            PaymentObservation {
+                event_id,
+                payment_tx_hash,
+                payment_block_number: payment_block_number as u64,
+                observed_at: DateTime::parse_from_rfc3339(&observed_at).unwrap().with_timezone(&Utc),
+            }
+        }))
+    }
+
     pub async fn store_active_event(&self, event: &ActiveEvent) -> Result<(), sqlx::Error> {
         let window_json = event.window.as_ref().map(|w| serde_json::to_string(w).unwrap());
         sqlx::query(
@@ -172,7 +193,7 @@ impl Cache {
     }
 
     pub async fn get_active_event(&self, event_id: &str) -> Result<Option<ActiveEvent>, sqlx::Error> {
-        let row: Option<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
+        let row: Option<EventRow> = sqlx::query_as(
             "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events WHERE event_id = ?",
         )
         .bind(event_id)
@@ -192,8 +213,38 @@ impl Cache {
         }))
     }
 
+    /// Look up an active event by prefix of its event_id.
+    /// Returns the event if exactly one match is found.
+    /// Returns an error if multiple events match (ambiguous prefix).
+    pub async fn get_active_event_by_prefix(&self, prefix: &str) -> Result<Option<ActiveEvent>, sqlx::Error> {
+        let pattern = format!("{}%", prefix);
+        let rows: Vec<EventRow> = sqlx::query_as(
+            "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events WHERE event_id LIKE ? LIMIT 2",
+        )
+        .bind(&pattern)
+        .fetch_all(&self.pool)
+        .await?;
+
+        if rows.len() > 1 {
+            // Ambiguous prefix - caller should handle this
+            return Ok(None);
+        }
+
+        Ok(rows.into_iter().next().map(|(event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json)| {
+            ActiveEvent {
+                event_id,
+                metadata: serde_json::from_str(&metadata_json).unwrap(),
+                creator_address,
+                payment_tx_hash,
+                payment_block_number: payment_block_number as u64,
+                activated_at: DateTime::parse_from_rfc3339(&activated_at).unwrap().with_timezone(&Utc),
+                window: window_json.map(|w| serde_json::from_str(&w).unwrap()),
+            }
+        }))
+    }
+
     pub async fn list_active_events(&self) -> Result<Vec<ActiveEvent>, sqlx::Error> {
-        let rows: Vec<(String, String, String, String, i64, String, Option<String>)> = sqlx::query_as(
+        let rows: Vec<EventRow> = sqlx::query_as(
             "SELECT event_id, metadata_json, creator_address, payment_tx_hash, payment_block_number, activated_at, window_json FROM active_events",
         )
         .fetch_all(&self.pool)
@@ -305,6 +356,39 @@ impl Cache {
                 observed_at: DateTime::parse_from_rfc3339(&observed_at).unwrap().with_timezone(&Utc),
             }
         }).collect())
+    }
+
+    /// Return all badges with `mint_block_number = 0` (pending confirmation).
+    pub async fn get_pending_badges(&self) -> Result<Vec<BadgeObservation>, sqlx::Error> {
+        let rows: Vec<(String, String, String, i64, i64, String)> = sqlx::query_as(
+            "SELECT event_id, holder_address, mint_tx_hash, mint_block_number, verified_at_block, observed_at FROM badge_observations WHERE mint_block_number = 0",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|(event_id, holder_address, mint_tx_hash, mint_block_number, verified_at_block, observed_at)| {
+            BadgeObservation {
+                event_id,
+                holder_address,
+                mint_tx_hash,
+                mint_block_number: mint_block_number as u64,
+                verified_at_block: verified_at_block as u64,
+                observed_at: DateTime::parse_from_rfc3339(&observed_at).unwrap().with_timezone(&Utc),
+            }
+        }).collect())
+    }
+
+    /// Update the block number for a confirmed badge transaction.
+    pub async fn update_badge_block_number(&self, tx_hash: &str, block_number: u64) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE badge_observations SET mint_block_number = ?, verified_at_block = ? WHERE mint_tx_hash = ?",
+        )
+        .bind(block_number as i64)
+        .bind(block_number as i64)
+        .bind(tx_hash)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     pub async fn is_available(&self) -> bool {
@@ -574,5 +658,121 @@ mod tests {
         assert_eq!(deleted, 2);
 
         assert!(!cache.check_qr_replay("evt1", 1000).await.unwrap());
+    }
+
+    // --- Prefix Lookup ---
+
+    #[tokio::test]
+    async fn test_get_active_event_by_prefix_exact_match() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "abcdef1234567890".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 200,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let loaded = cache.get_active_event_by_prefix("abcdef").await.unwrap();
+        assert!(loaded.is_some());
+        assert_eq!(loaded.unwrap().event_id, "abcdef1234567890");
+    }
+
+    #[tokio::test]
+    async fn test_get_active_event_by_prefix_no_match() {
+        let cache = test_cache().await;
+        let event = ActiveEvent {
+            event_id: "abcdef1234567890".to_string(),
+            metadata: test_metadata(),
+            creator_address: "ckt1q".to_string(),
+            payment_tx_hash: "0xtx".to_string(),
+            payment_block_number: 200,
+            activated_at: Utc::now(),
+            window: None,
+        };
+        cache.store_active_event(&event).await.unwrap();
+
+        let loaded = cache.get_active_event_by_prefix("zzz").await.unwrap();
+        assert!(loaded.is_none());
+    }
+
+    // --- Pending Badges ---
+
+    #[tokio::test]
+    async fn test_get_pending_badges() {
+        let cache = test_cache().await;
+        // Pending badge (block_number = 0)
+        let pending = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr_pending".to_string(),
+            mint_tx_hash: "0xtx_pending".to_string(),
+            mint_block_number: 0,
+            verified_at_block: 0,
+            observed_at: Utc::now(),
+        };
+        // Confirmed badge (block_number > 0)
+        let confirmed = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr_confirmed".to_string(),
+            mint_tx_hash: "0xtx_confirmed".to_string(),
+            mint_block_number: 500,
+            verified_at_block: 501,
+            observed_at: Utc::now(),
+        };
+        cache.store_badge_observation(&pending).await.unwrap();
+        cache.store_badge_observation(&confirmed).await.unwrap();
+
+        let pending_badges = cache.get_pending_badges().await.unwrap();
+        assert_eq!(pending_badges.len(), 1);
+        assert_eq!(pending_badges[0].mint_tx_hash, "0xtx_pending");
+    }
+
+    #[tokio::test]
+    async fn test_update_badge_block_number() {
+        let cache = test_cache().await;
+        let badge = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr1".to_string(),
+            mint_tx_hash: "0xtx1".to_string(),
+            mint_block_number: 0,
+            verified_at_block: 0,
+            observed_at: Utc::now(),
+        };
+        cache.store_badge_observation(&badge).await.unwrap();
+
+        cache.update_badge_block_number("0xtx1", 42).await.unwrap();
+
+        let badges = cache.get_badges_by_event("evt1").await.unwrap();
+        assert_eq!(badges.len(), 1);
+        assert_eq!(badges[0].mint_block_number, 42);
+        assert_eq!(badges[0].verified_at_block, 42);
+
+        // Should no longer be pending
+        let pending = cache.get_pending_badges().await.unwrap();
+        assert!(pending.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_get_active_event_by_prefix_ambiguous() {
+        let cache = test_cache().await;
+        for suffix in &["aaa", "bbb"] {
+            let event = ActiveEvent {
+                event_id: format!("abc{}", suffix),
+                metadata: test_metadata(),
+                creator_address: "ckt1q".to_string(),
+                payment_tx_hash: "0xtx".to_string(),
+                payment_block_number: 200,
+                activated_at: Utc::now(),
+                window: None,
+            };
+            cache.store_active_event(&event).await.unwrap();
+        }
+
+        // "abc" matches both "abcaaa" and "abcbbb" — returns None (ambiguous)
+        let loaded = cache.get_active_event_by_prefix("abc").await.unwrap();
+        assert!(loaded.is_none());
     }
 }

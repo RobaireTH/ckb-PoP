@@ -38,14 +38,6 @@ impl CkbRpcClient {
         }
     }
 
-    pub fn testnet() -> Self {
-        Self::new("https://testnet.ckb.dev/rpc")
-    }
-
-    pub fn mainnet() -> Self {
-        Self::new("https://mainnet.ckb.dev/rpc")
-    }
-
     async fn call(&self, method: &str, params: Value) -> Result<Value, RpcError> {
         let body = json!({
             "jsonrpc": "2.0",
@@ -137,6 +129,25 @@ impl CkbRpcClient {
 
     pub async fn is_connected(&self) -> bool {
         self.get_tip_block_number().await.is_ok()
+    }
+
+    /// Search cells using the CKB indexer RPC.
+    pub async fn search_cells(
+        &self,
+        search_key: &Value,
+        after_cursor: Option<&str>,
+        limit: u64,
+    ) -> Result<Value, RpcError> {
+        let order = "asc";
+        let limit_hex = format!("0x{:x}", limit);
+        let cursor = after_cursor
+            .map(|s| Value::String(s.to_string()))
+            .unwrap_or(Value::Null);
+        self.call(
+            "get_cells",
+            json!([search_key, order, limit_hex, cursor]),
+        )
+        .await
     }
 
     pub async fn last_observed_block(&self) -> Option<u64> {
