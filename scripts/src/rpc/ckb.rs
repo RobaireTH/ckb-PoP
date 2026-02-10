@@ -131,6 +131,25 @@ impl CkbRpcClient {
         self.get_tip_block_number().await.is_ok()
     }
 
+    /// Search cells using the CKB indexer RPC.
+    pub async fn search_cells(
+        &self,
+        search_key: &Value,
+        after_cursor: Option<&str>,
+        limit: u64,
+    ) -> Result<Value, RpcError> {
+        let order = "asc";
+        let limit_hex = format!("0x{:x}", limit);
+        let cursor = after_cursor
+            .map(|s| Value::String(s.to_string()))
+            .unwrap_or(Value::Null);
+        self.call(
+            "get_cells",
+            json!([search_key, order, limit_hex, cursor]),
+        )
+        .await
+    }
+
     pub async fn last_observed_block(&self) -> Option<u64> {
         *self.last_block.read().await
     }
