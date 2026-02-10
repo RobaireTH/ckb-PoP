@@ -32,6 +32,8 @@ pub fn router() -> Router<AppState> {
         .route("/badges/observe", get(observe_badges))
         .route("/badges/build", post(build_badge))
         .route("/badges/broadcast", post(broadcast_badge))
+        .route("/badges/record", post(record_badge))
+        .route("/tx/:hash", get(get_tx_status))
         .route("/payments/:tx_hash", get(get_payment))
         .route("/qr/parse", get(parse_qr))
 }
@@ -324,6 +326,79 @@ async fn broadcast_badge(
         .await
         .map_err(AppError::Relay)?;
     Ok(Json(response))
+}
+
+#[derive(Deserialize)]
+pub struct RecordBadgeRequest {
+    pub event_id: String,
+    pub holder_address: String,
+    pub tx_hash: String,
+}
+
+#[derive(Serialize)]
+pub struct RecordBadgeResponse {
+    pub badge: BadgeObservation,
+}
+
+/// Accept a real on-chain tx hash from the frontend after a successful mint.
+async fn record_badge(
+    State(state): State<AppState>,
+    Json(req): Json<RecordBadgeRequest>,
+) -> Result<Json<RecordBadgeResponse>, AppError> {
+    // Validate the event exists.
+    state
+        .cache
+        .get_active_event(&req.event_id)
+        .await
+        .map_err(|e| AppError::Observe(ObserveError::Cache(e)))?
+        .ok_or(AppError::Observe(ObserveError::NotFound))?;
+
+    let badge = BadgeObservation {
+        event_id: req.event_id,
+        holder_address: req.holder_address,
+        mint_tx_hash: req.tx_hash,
+        mint_block_number: 0, // Pending confirmation — background task will resolve.
+        verified_at_block: 0,
+        observed_at: Utc::now(),
+    };
+
+    observe::store_badge_observation(&state.cache, badge.clone())
+        .await
+        .map_err(AppError::BadgeObserve)?;
+
+    Ok(Json(RecordBadgeResponse { badge }))
+}
+
+#[derive(Serialize)]
+pub struct TxStatusResponse {
+    pub tx_hash: String,
+    pub block_number: Option<u64>,
+    pub confirmed: bool,
+}
+
+/// Proxy CKB RPC get_transaction to the frontend for block confirmation polling.
+async fn get_tx_status(
+    State(state): State<AppState>,
+    Path(hash): Path<String>,
+) -> Result<Json<TxStatusResponse>, AppError> {
+    let info = state
+        .rpc
+        .get_transaction(&hash)
+        .await
+        .map_err(|e| AppError::Observe(ObserveError::Rpc(e.to_string())))?;
+
+    match info {
+        Some(tx_info) => Ok(Json(TxStatusResponse {
+            tx_hash: tx_info.tx_hash,
+            block_number: tx_info.block_number,
+            confirmed: tx_info.confirmed,
+        })),
+        None => Ok(Json(TxStatusResponse {
+            tx_hash: hash,
+            block_number: None,
+            confirmed: false,
+        })),
+    }
 }
 
 async fn get_payment(
