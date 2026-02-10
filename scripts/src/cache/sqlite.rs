@@ -358,6 +358,39 @@ impl Cache {
         }).collect())
     }
 
+    /// Return all badges with `mint_block_number = 0` (pending confirmation).
+    pub async fn get_pending_badges(&self) -> Result<Vec<BadgeObservation>, sqlx::Error> {
+        let rows: Vec<(String, String, String, i64, i64, String)> = sqlx::query_as(
+            "SELECT event_id, holder_address, mint_tx_hash, mint_block_number, verified_at_block, observed_at FROM badge_observations WHERE mint_block_number = 0",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|(event_id, holder_address, mint_tx_hash, mint_block_number, verified_at_block, observed_at)| {
+            BadgeObservation {
+                event_id,
+                holder_address,
+                mint_tx_hash,
+                mint_block_number: mint_block_number as u64,
+                verified_at_block: verified_at_block as u64,
+                observed_at: DateTime::parse_from_rfc3339(&observed_at).unwrap().with_timezone(&Utc),
+            }
+        }).collect())
+    }
+
+    /// Update the block number for a confirmed badge transaction.
+    pub async fn update_badge_block_number(&self, tx_hash: &str, block_number: u64) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE badge_observations SET mint_block_number = ?, verified_at_block = ? WHERE mint_tx_hash = ?",
+        )
+        .bind(block_number as i64)
+        .bind(block_number as i64)
+        .bind(tx_hash)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn is_available(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&self.pool).await.is_ok()
     }
@@ -664,6 +697,62 @@ mod tests {
 
         let loaded = cache.get_active_event_by_prefix("zzz").await.unwrap();
         assert!(loaded.is_none());
+    }
+
+    // --- Pending Badges ---
+
+    #[tokio::test]
+    async fn test_get_pending_badges() {
+        let cache = test_cache().await;
+        // Pending badge (block_number = 0)
+        let pending = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr_pending".to_string(),
+            mint_tx_hash: "0xtx_pending".to_string(),
+            mint_block_number: 0,
+            verified_at_block: 0,
+            observed_at: Utc::now(),
+        };
+        // Confirmed badge (block_number > 0)
+        let confirmed = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr_confirmed".to_string(),
+            mint_tx_hash: "0xtx_confirmed".to_string(),
+            mint_block_number: 500,
+            verified_at_block: 501,
+            observed_at: Utc::now(),
+        };
+        cache.store_badge_observation(&pending).await.unwrap();
+        cache.store_badge_observation(&confirmed).await.unwrap();
+
+        let pending_badges = cache.get_pending_badges().await.unwrap();
+        assert_eq!(pending_badges.len(), 1);
+        assert_eq!(pending_badges[0].mint_tx_hash, "0xtx_pending");
+    }
+
+    #[tokio::test]
+    async fn test_update_badge_block_number() {
+        let cache = test_cache().await;
+        let badge = BadgeObservation {
+            event_id: "evt1".to_string(),
+            holder_address: "addr1".to_string(),
+            mint_tx_hash: "0xtx1".to_string(),
+            mint_block_number: 0,
+            verified_at_block: 0,
+            observed_at: Utc::now(),
+        };
+        cache.store_badge_observation(&badge).await.unwrap();
+
+        cache.update_badge_block_number("0xtx1", 42).await.unwrap();
+
+        let badges = cache.get_badges_by_event("evt1").await.unwrap();
+        assert_eq!(badges.len(), 1);
+        assert_eq!(badges[0].mint_block_number, 42);
+        assert_eq!(badges[0].verified_at_block, 42);
+
+        // Should no longer be pending
+        let pending = cache.get_pending_badges().await.unwrap();
+        assert!(pending.is_empty());
     }
 
     #[tokio::test]
