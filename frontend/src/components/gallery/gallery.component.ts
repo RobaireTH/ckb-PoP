@@ -144,11 +144,32 @@ type RoleFilter = 'all' | 'Attendee' | 'Organizer' | 'Certificate';
                       <div class="space-y-1.5 pt-2 border-t border-white/[0.04]">
                         <div class="flex justify-between items-center">
                           <span class="font-mono text-[8px] text-zinc-600 uppercase">Tx</span>
-                          <span class="font-mono text-[9px] text-zinc-400">{{ badge.txHash | slice:0:6 }}...{{ badge.txHash | slice:-4 }}</span>
+                          <a
+                            [href]="explorerTxUrl(badge.txHash)"
+                            target="_blank"
+                            rel="noopener"
+                            (click)="$event.stopPropagation()"
+                            class="font-mono text-[9px] text-zinc-400 hover:text-lime-400 transition-colors cursor-pointer"
+                            [title]="badge.txHash"
+                          >{{ badge.txHash | slice:0:6 }}...{{ badge.txHash | slice:-4 }}
+                            <svg class="w-2.5 h-2.5 inline-block ml-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                          </a>
                         </div>
                         <div class="flex justify-between items-center">
                           <span class="font-mono text-[8px] text-zinc-600 uppercase">Block</span>
-                          <span class="font-mono text-[9px] text-zinc-400">#{{ getBlockNumber(badge) }}</span>
+                          @if (badge.blockNumber != null) {
+                            <a
+                              [href]="explorerBlockUrl(badge.blockNumber)"
+                              target="_blank"
+                              rel="noopener"
+                              (click)="$event.stopPropagation()"
+                              class="font-mono text-[9px] text-zinc-400 hover:text-lime-400 transition-colors cursor-pointer"
+                            >#{{ badge.blockNumber.toLocaleString() }}</a>
+                          } @else {
+                            <span class="font-mono text-[9px] text-zinc-500 animate-pulse">#Pending</span>
+                          }
                         </div>
                       </div>
                     </div>
@@ -475,10 +496,11 @@ export class GalleryComponent implements OnInit {
     }
   }
 
-  getBlockNumber(badge: Badge): string {
-    if (badge.blockNumber != null) {
-      return badge.blockNumber.toLocaleString();
-    }
-    return 'Pending';
+  explorerTxUrl(txHash: string): string {
+    return `${this.poapService.explorerUrl}/transaction/${txHash}`;
+  }
+
+  explorerBlockUrl(blockNumber: number): string {
+    return `${this.poapService.explorerUrl}/block/${blockNumber}`;
   }
 }
