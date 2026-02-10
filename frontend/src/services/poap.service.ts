@@ -212,6 +212,7 @@ export class PoapService {
   }
 
   private readonly backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+  readonly explorerUrl = import.meta.env.VITE_EXPLORER_URL || 'https://pudge.explorer.nervos.org';
 
   async getAttendees(eventId: string): Promise<Attendee[]> {
     try {
@@ -308,6 +309,7 @@ export class PoapService {
   /**
    * Load badges from the backend for the given address.
    * Merges backend observations with locally-minted badges.
+   * Eagerly resolves block numbers for any pending badges via /api/tx/:hash.
    */
   async loadBadgesFromBackend(address: string): Promise<void> {
     try {
@@ -327,6 +329,13 @@ export class PoapService {
       const backendBadges: Badge[] = [];
       for (const obs of observations) {
         const event = await this.getEventById(obs.event_id);
+
+        // If block number is 0 (pending), try resolving it now.
+        let blockNumber = obs.mint_block_number > 0 ? obs.mint_block_number : undefined;
+        if (!blockNumber) {
+          blockNumber = await this.resolveBlockNumber(obs.mint_tx_hash);
+        }
+
         backendBadges.push({
           id: `${obs.event_id}-${obs.holder_address}`,
           eventId: obs.event_id,
@@ -335,7 +344,7 @@ export class PoapService {
           txHash: obs.mint_tx_hash,
           imageUrl: event?.imageUrl || `https://picsum.photos/seed/${obs.event_id}/400/400`,
           role: 'Attendee',
-          blockNumber: obs.mint_block_number || undefined,
+          blockNumber,
         });
       }
 
@@ -345,7 +354,7 @@ export class PoapService {
       );
       this.badgesSignal.set([...backendBadges, ...localOnly]);
 
-      // Start polling for any unconfirmed badges.
+      // Start polling for any still-unconfirmed badges.
       for (const badge of backendBadges) {
         if (!badge.blockNumber) {
           this.pollForConfirmation(badge.txHash);
@@ -354,6 +363,24 @@ export class PoapService {
     } catch {
       // Backend unreachable — keep local badges only
     }
+  }
+
+  /**
+   * Try to resolve a block number for a tx hash via the backend tx status endpoint.
+   * Returns undefined if the tx is not yet confirmed or unreachable.
+   */
+  private async resolveBlockNumber(txHash: string): Promise<number | undefined> {
+    try {
+      const res = await fetch(`${this.backendUrl}/tx/${txHash}`);
+      if (!res.ok) return undefined;
+      const data = await res.json();
+      if (data.confirmed && data.block_number) {
+        return data.block_number;
+      }
+    } catch {
+      // Unreachable — leave as pending.
+    }
+    return undefined;
   }
 
   /**
