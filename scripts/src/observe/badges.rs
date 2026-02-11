@@ -21,7 +21,15 @@ pub async fn observe_badges_by_address(
     rpc: &CkbRpcClient,
     address: &str,
     verify: bool,
+    chain_config: Option<(&str, &str)>,
 ) -> Result<BadgeListResponse, BadgeObserveError> {
+    // Sync from chain before returning cached results.
+    if let Some((code_hash, address_hrp)) = chain_config {
+        if let Err(e) = sync_from_chain_for_address(cache, rpc, address, code_hash, address_hrp).await {
+            tracing::warn!("Chain sync for address {address} failed: {e}");
+        }
+    }
+
     let badges = cache
         .get_badges_by_address(address)
         .await
@@ -45,7 +53,15 @@ pub async fn observe_badges_by_event(
     rpc: &CkbRpcClient,
     event_id: &str,
     verify: bool,
+    chain_config: Option<(&str, &str)>,
 ) -> Result<BadgeListResponse, BadgeObserveError> {
+    // Sync from chain before returning cached results.
+    if let Some((code_hash, address_hrp)) = chain_config {
+        if let Err(e) = sync_from_chain_for_event(cache, rpc, event_id, code_hash, address_hrp).await {
+            tracing::warn!("Chain sync for event {event_id} failed: {e}");
+        }
+    }
+
     let badges = cache
         .get_badges_by_event(event_id)
         .await
@@ -150,6 +166,78 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
 
     let total = sync_cells_from_search(cache, rpc, &search_key, &event_hash_map, address_hrp).await;
     tracing::info!("Rehydration complete: {total} badge(s) synced from chain");
+}
+
+/// Sync badges from chain for a specific holder address.
+///
+/// Searches the indexer for badge cells owned by the address's lock script,
+/// matches event_id via SHA256 lookup, and stores any missing badges.
+async fn sync_from_chain_for_address(
+    cache: &Cache,
+    rpc: &CkbRpcClient,
+    address: &str,
+    code_hash: &str,
+    address_hrp: &str,
+) -> Result<(), BadgeObserveError> {
+    let (lock_code_hash, lock_hash_type, lock_args) =
+        crate::crypto::signatures::parse_ckb_address(address)
+            .map_err(|_| BadgeObserveError::InvalidAddress)?;
+
+    let event_hash_map = build_event_hash_map(cache).await?;
+    if event_hash_map.is_empty() {
+        return Ok(());
+    }
+
+    let search_key = serde_json::json!({
+        "script": {
+            "code_hash": format!("0x{}", hex::encode(lock_code_hash)),
+            "hash_type": hash_type_to_str(lock_hash_type),
+            "args": format!("0x{}", hex::encode(&lock_args))
+        },
+        "script_type": "lock",
+        "filter": {
+            "script": {
+                "code_hash": code_hash,
+                "hash_type": "type",
+                "args": "0x"
+            }
+        },
+        "script_search_mode": "prefix"
+    });
+
+    sync_cells_from_search(cache, rpc, &search_key, &event_hash_map, address_hrp).await;
+    Ok(())
+}
+
+/// Sync badges from chain for a specific event.
+///
+/// Searches the indexer for badge cells whose type script args start with
+/// SHA256(event_id), derives holder addresses from lock scripts, and stores
+/// any missing badges.
+async fn sync_from_chain_for_event(
+    cache: &Cache,
+    rpc: &CkbRpcClient,
+    event_id: &str,
+    code_hash: &str,
+    address_hrp: &str,
+) -> Result<(), BadgeObserveError> {
+    let event_id_hash = hex::encode(sha2::Sha256::digest(event_id.as_bytes()));
+
+    let mut event_hash_map = HashMap::new();
+    event_hash_map.insert(event_id_hash.clone(), event_id.to_string());
+
+    let search_key = serde_json::json!({
+        "script": {
+            "code_hash": code_hash,
+            "hash_type": "type",
+            "args": format!("0x{}", event_id_hash)
+        },
+        "script_type": "type",
+        "script_search_mode": "prefix"
+    });
+
+    sync_cells_from_search(cache, rpc, &search_key, &event_hash_map, address_hrp).await;
+    Ok(())
 }
 
 /// Paginate through indexer results and store badge observations for matching cells.
@@ -322,6 +410,8 @@ fn encode_lock_as_address(cell: &serde_json::Value, hrp: &str) -> Option<String>
 pub enum BadgeObserveError {
     #[error("cache error: {0}")]
     Cache(#[from] sqlx::Error),
+    #[error("invalid CKB address")]
+    InvalidAddress,
 }
 
 #[cfg(test)]
@@ -342,7 +432,7 @@ mod tests {
     async fn test_observe_badges_by_address_empty() {
         let cache = test_cache().await;
         let rpc = test_rpc();
-        let result = observe_badges_by_address(&cache, &rpc, "addr1", false).await.unwrap();
+        let result = observe_badges_by_address(&cache, &rpc, "addr1", false, None).await.unwrap();
         assert!(result.badges.is_empty());
         assert!(result.cached);
     }
@@ -362,7 +452,7 @@ mod tests {
         };
         store_badge_observation(&cache, badge).await.unwrap();
 
-        let result = observe_badges_by_event(&cache, &rpc, "evt1", false).await.unwrap();
+        let result = observe_badges_by_event(&cache, &rpc, "evt1", false, None).await.unwrap();
         assert_eq!(result.badges.len(), 1);
         assert_eq!(result.badges[0].holder_address, "addr1");
     }
@@ -382,7 +472,7 @@ mod tests {
         };
         store_badge_observation(&cache, badge).await.unwrap();
 
-        let result = observe_badges_by_address(&cache, &rpc, "myaddr", false).await.unwrap();
+        let result = observe_badges_by_address(&cache, &rpc, "myaddr", false, None).await.unwrap();
         assert_eq!(result.badges.len(), 1);
     }
 }

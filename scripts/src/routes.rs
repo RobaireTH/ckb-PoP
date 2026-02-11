@@ -269,7 +269,8 @@ async fn get_badge_holders(
     Path(event_id): Path<String>,
     Query(query): Query<VerifyQuery>,
 ) -> Result<Json<observe::BadgeListResponse>, AppError> {
-    let response = observe::observe_badges_by_event(&state.cache, &state.rpc, &event_id, query.verify)
+    let chain_config = state.dob_code_hash.as_deref().map(|ch| (ch, state.address_hrp.as_str()));
+    let response = observe::observe_badges_by_event(&state.cache, &state.rpc, &event_id, query.verify, chain_config)
         .await
         .map_err(AppError::BadgeObserve)?;
     Ok(Json(response))
@@ -286,7 +287,8 @@ async fn observe_badges(
     State(state): State<AppState>,
     Query(query): Query<BadgeQuery>,
 ) -> Result<Json<observe::BadgeListResponse>, AppError> {
-    let response = observe::observe_badges_by_address(&state.cache, &state.rpc, &query.address, query.verify)
+    let chain_config = state.dob_code_hash.as_deref().map(|ch| (ch, state.address_hrp.as_str()));
+    let response = observe::observe_badges_by_address(&state.cache, &state.rpc, &query.address, query.verify, chain_config)
         .await
         .map_err(AppError::BadgeObserve)?;
     Ok(Json(response))
