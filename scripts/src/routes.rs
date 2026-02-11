@@ -345,13 +345,13 @@ async fn record_badge(
     State(state): State<AppState>,
     Json(req): Json<RecordBadgeRequest>,
 ) -> Result<Json<RecordBadgeResponse>, AppError> {
-    // Validate the event exists.
-    state
-        .cache
-        .get_active_event(&req.event_id)
-        .await
-        .map_err(|e| AppError::Observe(ObserveError::Cache(e)))?
-        .ok_or(AppError::Observe(ObserveError::NotFound))?;
+    // Check if the event exists, but don't fail if it doesn't — the badge is
+    // valid on-chain even if the backend lost its event record (e.g. DB wipe).
+    match state.cache.get_active_event(&req.event_id).await {
+        Ok(None) => tracing::warn!("Recording badge for unknown event {}", req.event_id),
+        Err(e) => tracing::warn!("Cache error checking event {}: {e}", req.event_id),
+        Ok(Some(_)) => {}
+    }
 
     let badge = BadgeObservation {
         event_id: req.event_id,
