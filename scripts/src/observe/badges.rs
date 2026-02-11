@@ -125,7 +125,6 @@ pub async fn confirm_pending_badges(cache: &Cache, rpc: &CkbRpcClient) {
 pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: &str, address_hrp: &str) {
     tracing::info!("Starting chain rehydration with code_hash={code_hash}");
 
-    // Build lookup map: SHA256(event_id) hex → actual event_id.
     let event_hash_map = match build_event_hash_map(cache).await {
         Ok(map) => map,
         Err(e) => {
@@ -139,7 +138,6 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
         return;
     }
 
-    // Search for all cells with the badge type script.
     let search_key = serde_json::json!({
         "script": {
             "code_hash": code_hash,
@@ -150,14 +148,27 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
         "script_search_mode": "prefix"
     });
 
+    let total = sync_cells_from_search(cache, rpc, &search_key, &event_hash_map, address_hrp).await;
+    tracing::info!("Rehydration complete: {total} badge(s) synced from chain");
+}
+
+/// Paginate through indexer results and store badge observations for matching cells.
+/// Returns the number of badges stored.
+async fn sync_cells_from_search(
+    cache: &Cache,
+    rpc: &CkbRpcClient,
+    search_key: &serde_json::Value,
+    event_hash_map: &HashMap<String, String>,
+    address_hrp: &str,
+) -> u64 {
     let mut after_cursor: Option<String> = None;
-    let mut total_rehydrated: u64 = 0;
+    let mut total: u64 = 0;
 
     loop {
-        let cells = match rpc.search_cells(&search_key, after_cursor.as_deref(), 100).await {
+        let cells = match rpc.search_cells(search_key, after_cursor.as_deref(), 100).await {
             Ok(result) => result,
             Err(e) => {
-                tracing::warn!("Rehydration indexer query failed: {e}");
+                tracing::debug!("Indexer query failed during sync: {e}");
                 break;
             }
         };
@@ -172,76 +183,11 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
         }
 
         for cell in objects {
-            // Extract the event_id hash from type script args (first 32 bytes = 64 hex chars).
-            let type_args = match cell
-                .get("output")
-                .and_then(|o| o.get("type"))
-                .and_then(|t| t.get("args"))
-                .and_then(|a| a.as_str())
-            {
-                Some(a) => a,
-                None => continue,
-            };
-
-            let args_hex = type_args.trim_start_matches("0x");
-            if args_hex.len() < 64 {
-                tracing::debug!("Skipping cell with short type args: {type_args}");
-                continue;
-            }
-
-            let event_id_hash = &args_hex[..64];
-
-            // Resolve actual event_id from the SHA256 hash.
-            let event_id = match event_hash_map.get(event_id_hash) {
-                Some(id) => id.clone(),
-                None => {
-                    tracing::debug!("No matching event for hash {event_id_hash}");
-                    continue;
-                }
-            };
-
-            // Derive the holder's CKB address from the cell's lock script.
-            let holder_address = match encode_lock_as_address(cell, address_hrp) {
-                Some(addr) => addr,
-                None => {
-                    tracing::debug!("Could not encode CKB address from cell lock script");
-                    continue;
-                }
-            };
-
-            // Get the creating transaction hash from the outpoint.
-            let tx_hash = match cell
-                .get("out_point")
-                .and_then(|op| op.get("tx_hash"))
-                .and_then(|h| h.as_str())
-            {
-                Some(h) => h.to_string(),
-                None => continue,
-            };
-
-            // Resolve block number from the transaction.
-            let block_number = match rpc.get_transaction(&tx_hash).await {
-                Ok(Some(info)) if info.confirmed => info.block_number.unwrap_or(0),
-                _ => 0,
-            };
-
-            let badge = BadgeObservation {
-                event_id,
-                holder_address,
-                mint_tx_hash: tx_hash,
-                mint_block_number: block_number,
-                verified_at_block: block_number,
-                observed_at: Utc::now(),
-            };
-
-            if let Err(e) = cache.store_badge_observation(&badge).await {
-                tracing::warn!("Failed to store rehydrated badge: {e}");
-            } else {
-                total_rehydrated += 1;
+            if process_badge_cell(cache, rpc, cell, event_hash_map, address_hrp).await {
+                total += 1;
             }
         }
 
-        // Advance pagination cursor.
         after_cursor = cells
             .get("last_cursor")
             .and_then(|c| c.as_str())
@@ -252,7 +198,78 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
         }
     }
 
-    tracing::info!("Rehydration complete: {total_rehydrated} badge(s) synced from chain");
+    total
+}
+
+/// Process a single badge cell: match event_id, derive holder address, store observation.
+/// Returns true if a new badge was stored.
+async fn process_badge_cell(
+    cache: &Cache,
+    rpc: &CkbRpcClient,
+    cell: &serde_json::Value,
+    event_hash_map: &HashMap<String, String>,
+    address_hrp: &str,
+) -> bool {
+    let type_args = match cell
+        .get("output")
+        .and_then(|o| o.get("type"))
+        .and_then(|t| t.get("args"))
+        .and_then(|a| a.as_str())
+    {
+        Some(a) => a,
+        None => return false,
+    };
+
+    let args_hex = type_args.trim_start_matches("0x");
+    if args_hex.len() < 64 {
+        return false;
+    }
+
+    let event_id = match event_hash_map.get(&args_hex[..64]) {
+        Some(id) => id.clone(),
+        None => return false,
+    };
+
+    let holder_address = match encode_lock_as_address(cell, address_hrp) {
+        Some(addr) => addr,
+        None => return false,
+    };
+
+    let tx_hash = match cell
+        .get("out_point")
+        .and_then(|op| op.get("tx_hash"))
+        .and_then(|h| h.as_str())
+    {
+        Some(h) => h.to_string(),
+        None => return false,
+    };
+
+    let block_number = match rpc.get_transaction(&tx_hash).await {
+        Ok(Some(info)) if info.confirmed => info.block_number.unwrap_or(0),
+        _ => 0,
+    };
+
+    let badge = BadgeObservation {
+        event_id,
+        holder_address,
+        mint_tx_hash: tx_hash,
+        mint_block_number: block_number,
+        verified_at_block: block_number,
+        observed_at: Utc::now(),
+    };
+
+    cache.store_badge_observation(&badge).await.is_ok()
+}
+
+/// Convert hash_type byte to CKB RPC string representation.
+fn hash_type_to_str(hash_type: u8) -> &'static str {
+    match hash_type {
+        0x00 => "data",
+        0x01 => "type",
+        0x02 => "data1",
+        0x04 => "data2",
+        _ => "data",
+    }
 }
 
 /// Build a lookup map from SHA256(event_id) hex → event_id for all known events.
