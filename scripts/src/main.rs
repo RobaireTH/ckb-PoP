@@ -37,16 +37,18 @@ async fn main() {
 
     tracing::info!("Network: {}, RPC: {}", ckb_network, ckb_rpc_url);
 
-    let state = AppState::new(&database_url, &ckb_rpc_url)
+    let dob_code_hash = std::env::var("DOB_BADGE_CODE_HASH").ok();
+    let address_hrp = if ckb_network == "mainnet" { "ckb" } else { "ckt" };
+
+    let state = AppState::new(&database_url, &ckb_rpc_url, dob_code_hash.clone(), address_hrp.to_string())
         .await
         .expect("Failed to initialize app state");
 
     // Rehydrate badge data from the chain if a code hash is configured.
-    if let Ok(code_hash) = std::env::var("DOB_BADGE_CODE_HASH") {
+    if let Some(ref code_hash) = dob_code_hash {
         let cache = Arc::clone(&state.cache);
         let rpc = Arc::clone(&state.rpc);
-        let address_hrp = if ckb_network == "mainnet" { "ckb" } else { "ckt" };
-        observe::rehydrate_from_chain(&cache, &rpc, &code_hash, address_hrp).await;
+        observe::rehydrate_from_chain(&cache, &rpc, code_hash, address_hrp).await;
     }
 
     // Spawn background task to confirm pending badges every 15 seconds.
