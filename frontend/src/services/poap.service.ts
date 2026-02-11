@@ -248,12 +248,8 @@ export class PoapService {
       throw err;
     }
 
-    // Notify backend of the real on-chain mint (fire-and-forget).
-    fetch(`${this.backendUrl}/badges/record`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_id: event.id, holder_address: address, tx_hash: txHash }),
-    }).catch(() => { /* Backend notification is non-critical. */ });
+    // Record the mint in the backend with retry; stash in localStorage on failure.
+    this.recordBadgeWithRetry(event.id, address, txHash);
 
     const newBadge: Badge = {
       id: crypto.randomUUID(),
@@ -312,6 +308,9 @@ export class PoapService {
    * Eagerly resolves block numbers for any pending badges via /api/tx/:hash.
    */
   async loadBadgesFromBackend(address: string): Promise<void> {
+    // Flush any badge records that failed to POST in a previous session.
+    await this.flushPendingRecords();
+
     try {
       const res = await fetch(`${this.backendUrl}/badges/observe?address=${encodeURIComponent(address)}`);
       if (!res.ok) return;
@@ -381,6 +380,83 @@ export class PoapService {
       // Unreachable — leave as pending.
     }
     return undefined;
+  }
+
+  private static readonly PENDING_RECORDS_KEY = 'ckb-pop-pending-badge-records';
+
+  /**
+   * POST to /badges/record with retry. On total failure, stash in localStorage
+   * so the next login can flush it.
+   */
+  private async recordBadgeWithRetry(eventId: string, address: string, txHash: string): Promise<void> {
+    const payload = { event_id: eventId, holder_address: address, tx_hash: txHash };
+    const maxRetries = 3;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const res = await fetch(`${this.backendUrl}/badges/record`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) return;
+      } catch {
+        // Network error — will retry.
+      }
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+    }
+
+    // All retries exhausted — stash for next login.
+    this.stashPendingRecord(payload);
+  }
+
+  private stashPendingRecord(record: { event_id: string; holder_address: string; tx_hash: string }): void {
+    try {
+      const raw = localStorage.getItem(PoapService.PENDING_RECORDS_KEY);
+      const pending: Array<typeof record> = raw ? JSON.parse(raw) : [];
+      if (!pending.some(r => r.tx_hash === record.tx_hash)) {
+        pending.push(record);
+        localStorage.setItem(PoapService.PENDING_RECORDS_KEY, JSON.stringify(pending));
+      }
+    } catch {
+      // localStorage unavailable — best-effort.
+    }
+  }
+
+  /**
+   * Flush any stashed badge records to the backend.
+   * Called on login before loading badges.
+   */
+  private async flushPendingRecords(): Promise<void> {
+    let pending: Array<{ event_id: string; holder_address: string; tx_hash: string }>;
+    try {
+      const raw = localStorage.getItem(PoapService.PENDING_RECORDS_KEY);
+      if (!raw) return;
+      pending = JSON.parse(raw);
+      if (!pending.length) return;
+    } catch {
+      return;
+    }
+
+    const remaining: typeof pending = [];
+    for (const record of pending) {
+      try {
+        const res = await fetch(`${this.backendUrl}/badges/record`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(record),
+        });
+        if (!res.ok) remaining.push(record);
+      } catch {
+        remaining.push(record);
+      }
+    }
+
+    if (remaining.length) {
+      localStorage.setItem(PoapService.PENDING_RECORDS_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(PoapService.PENDING_RECORDS_KEY);
+    }
   }
 
   /**
