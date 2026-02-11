@@ -1,5 +1,9 @@
+use std::collections::HashMap;
+
+use bech32::ToBase32;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 
 use crate::cache::Cache;
 use crate::rpc::CkbRpcClient;
@@ -112,14 +116,28 @@ pub async fn confirm_pending_badges(cache: &Cache, rpc: &CkbRpcClient) {
 /// Rehydrate badge data from the CKB chain on startup.
 ///
 /// Queries the CKB indexer for cells matching the DOB badge type script
-/// (identified by `code_hash`). For each cell found, extracts the event_id
-/// and holder_address from the type script args, resolves the creating
-/// transaction's block number, and upserts into SQLite.
+/// (identified by `code_hash`). For each cell found, resolves the event_id
+/// by matching SHA256 hashes against known events and derives the holder
+/// address from the cell's lock script.
 ///
-/// This ensures badge data survives database wipes since the chain is the
-/// source of truth.
-pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: &str) {
+/// This ensures badge data survives partial database loss (badges wiped but
+/// events intact) since the chain is the source of truth.
+pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: &str, address_hrp: &str) {
     tracing::info!("Starting chain rehydration with code_hash={code_hash}");
+
+    // Build lookup map: SHA256(event_id) hex → actual event_id.
+    let event_hash_map = match build_event_hash_map(cache).await {
+        Ok(map) => map,
+        Err(e) => {
+            tracing::warn!("Failed to build event hash map for rehydration: {e}");
+            return;
+        }
+    };
+
+    if event_hash_map.is_empty() {
+        tracing::info!("No events in database — skipping chain rehydration");
+        return;
+    }
 
     // Search for all cells with the badge type script.
     let search_key = serde_json::json!({
@@ -154,26 +172,42 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
         }
 
         for cell in objects {
-            // Extract type script args: first 32 bytes = event_id hash, rest = holder lock hash
-            let args = match cell
+            // Extract the event_id hash from type script args (first 32 bytes = 64 hex chars).
+            let type_args = match cell
                 .get("output")
                 .and_then(|o| o.get("type"))
                 .and_then(|t| t.get("args"))
                 .and_then(|a| a.as_str())
             {
-                Some(a) => a.to_string(),
+                Some(a) => a,
                 None => continue,
             };
 
-            // Args format: 0x + 64 hex chars (event_id) + 40 hex chars (lock_args/address)
-            // Minimum: 0x prefix + at least some hex
-            let args_hex = args.trim_start_matches("0x");
-            if args_hex.len() < 104 {
-                tracing::debug!("Skipping cell with short args: {args}");
+            let args_hex = type_args.trim_start_matches("0x");
+            if args_hex.len() < 64 {
+                tracing::debug!("Skipping cell with short type args: {type_args}");
                 continue;
             }
-            let event_id = &args_hex[..64];
-            let holder_lock_args = format!("0x{}", &args_hex[64..]);
+
+            let event_id_hash = &args_hex[..64];
+
+            // Resolve actual event_id from the SHA256 hash.
+            let event_id = match event_hash_map.get(event_id_hash) {
+                Some(id) => id.clone(),
+                None => {
+                    tracing::debug!("No matching event for hash {event_id_hash}");
+                    continue;
+                }
+            };
+
+            // Derive the holder's CKB address from the cell's lock script.
+            let holder_address = match encode_lock_as_address(cell, address_hrp) {
+                Some(addr) => addr,
+                None => {
+                    tracing::debug!("Could not encode CKB address from cell lock script");
+                    continue;
+                }
+            };
 
             // Get the creating transaction hash from the outpoint.
             let tx_hash = match cell
@@ -192,8 +226,8 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
             };
 
             let badge = BadgeObservation {
-                event_id: event_id.to_string(),
-                holder_address: holder_lock_args,
+                event_id,
+                holder_address,
                 mint_tx_hash: tx_hash,
                 mint_block_number: block_number,
                 verified_at_block: block_number,
@@ -219,6 +253,52 @@ pub async fn rehydrate_from_chain(cache: &Cache, rpc: &CkbRpcClient, code_hash: 
     }
 
     tracing::info!("Rehydration complete: {total_rehydrated} badge(s) synced from chain");
+}
+
+/// Build a lookup map from SHA256(event_id) hex → event_id for all known events.
+async fn build_event_hash_map(cache: &Cache) -> Result<HashMap<String, String>, sqlx::Error> {
+    let event_ids = cache.list_all_event_ids().await?;
+    let mut map = HashMap::with_capacity(event_ids.len());
+
+    for event_id in event_ids {
+        let hash = sha2::Sha256::digest(event_id.as_bytes());
+        let hash_hex = hex::encode(hash);
+        map.insert(hash_hex, event_id);
+    }
+
+    Ok(map)
+}
+
+/// Encode a cell's lock script (from search_cells JSON) as a full-format CKB address.
+fn encode_lock_as_address(cell: &serde_json::Value, hrp: &str) -> Option<String> {
+    let lock = cell.get("output")?.get("lock")?;
+    let code_hash_hex = lock.get("code_hash")?.as_str()?;
+    let hash_type_str = lock.get("hash_type")?.as_str()?;
+    let args_hex = lock.get("args")?.as_str()?;
+
+    let code_hash = hex::decode(code_hash_hex.trim_start_matches("0x")).ok()?;
+    if code_hash.len() != 32 {
+        return None;
+    }
+
+    let hash_type_byte: u8 = match hash_type_str {
+        "data" => 0x00,
+        "type" => 0x01,
+        "data1" => 0x02,
+        "data2" => 0x04,
+        _ => return None,
+    };
+
+    let args = hex::decode(args_hex.trim_start_matches("0x")).ok()?;
+
+    // Full-format CKB address payload: 0x00 | code_hash(32) | hash_type(1) | args
+    let mut payload = Vec::with_capacity(34 + args.len());
+    payload.push(0x00);
+    payload.extend_from_slice(&code_hash);
+    payload.push(hash_type_byte);
+    payload.extend_from_slice(&args);
+
+    bech32::encode(hrp, payload.to_base32(), bech32::Variant::Bech32m).ok()
 }
 
 #[derive(Debug, thiserror::Error)]

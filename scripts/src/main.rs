@@ -45,7 +45,8 @@ async fn main() {
     if let Ok(code_hash) = std::env::var("DOB_BADGE_CODE_HASH") {
         let cache = Arc::clone(&state.cache);
         let rpc = Arc::clone(&state.rpc);
-        observe::rehydrate_from_chain(&cache, &rpc, &code_hash).await;
+        let address_hrp = if ckb_network == "mainnet" { "ckb" } else { "ckt" };
+        observe::rehydrate_from_chain(&cache, &rpc, &code_hash, address_hrp).await;
     }
 
     // Spawn background task to confirm pending badges every 15 seconds.

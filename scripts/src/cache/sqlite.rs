@@ -391,6 +391,16 @@ impl Cache {
         Ok(())
     }
 
+    /// Return all event IDs from active_events.
+    pub async fn list_all_event_ids(&self) -> Result<Vec<String>, sqlx::Error> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            "SELECT event_id FROM active_events",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|(id,)| id).collect())
+    }
+
     pub async fn is_available(&self) -> bool {
         sqlx::query("SELECT 1").fetch_one(&self.pool).await.is_ok()
     }
