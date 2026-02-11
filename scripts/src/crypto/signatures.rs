@@ -86,7 +86,7 @@ pub fn verify_ckb_address_signature(
 }
 
 /// Parse a CKB bech32/bech32m address into (code_hash, hash_type, args).
-fn parse_ckb_address(address: &str) -> Result<([u8; 32], u8, Vec<u8>), SignatureError> {
+pub fn parse_ckb_address(address: &str) -> Result<([u8; 32], u8, Vec<u8>), SignatureError> {
     let (hrp, data, _variant) =
         bech32::decode(address).map_err(|_| SignatureError::InvalidAddress)?;
 
