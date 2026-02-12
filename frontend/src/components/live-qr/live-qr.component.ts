@@ -43,10 +43,18 @@ import QRCode from 'qrcode';
 						<!-- Creator must connect wallet to sign QR codes -->
 						<div class="p-6 text-center">
 							<div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mb-3">
-								Connect wallet to start attendance window
+								Connect wallet to generate attendance codes
 							</div>
 							<button (click)="showModal.set(true)" class="inline-flex items-center gap-2 px-4 py-2 bg-lime-400 text-black font-mono text-[10px] font-semibold uppercase tracking-wider">
 								<span>Connect Wallet</span>
+							</button>
+						</div>
+					} @else if (signingError()) {
+						<div class="p-6 text-center">
+							<div class="font-mono text-[10px] text-red-400 uppercase tracking-wider mb-1">Signing Error</div>
+							<div class="font-mono text-[9px] text-zinc-500">{{ signingError() }}</div>
+							<button (click)="startKiosk()" class="mt-3 font-mono text-[9px] text-lime-400 uppercase tracking-wider hover:underline">
+								Retry
 							</button>
 						</div>
 					} @else {
@@ -113,10 +121,13 @@ export class LiveQrComponent implements OnInit, OnDestroy {
 	progress = signal(100);
 	secondsLeft = signal(30);
 	needsWallet = signal(false);
+	signingError = signal<string | null>(null);
 	showModal = signal(false);
 
 	private intervalId: ReturnType<typeof setInterval> | null = null;
 	private refreshRate = 30;
+	// Signed once per kiosk session to avoid repeated wallet popups.
+	private sessionSignature: string | null = null;
 
 	async ngOnInit() {
 		const id = this.route.snapshot.paramMap.get('id');
@@ -131,13 +142,7 @@ export class LiveQrComponent implements OnInit, OnDestroy {
 			return;
 		}
 		this.event.set(ev);
-
-		if (!this.walletService.isConnected()) {
-			this.needsWallet.set(true);
-			return;
-		}
-
-		this.startRotation();
+		await this.startKiosk();
 	}
 
 	ngOnDestroy() {
@@ -147,8 +152,31 @@ export class LiveQrComponent implements OnInit, OnDestroy {
 	onWalletModalClose() {
 		this.showModal.set(false);
 		if (this.walletService.isConnected()) {
-			this.needsWallet.set(false);
+			this.startKiosk();
+		}
+	}
+
+	async startKiosk() {
+		this.signingError.set(null);
+		this.needsWallet.set(false);
+
+		if (!this.walletService.isConnected()) {
+			this.needsWallet.set(true);
+			return;
+		}
+
+		const ev = this.event();
+		if (!ev) return;
+
+		try {
+			// Sign once to prove creator identity for this kiosk session.
+			const sessionStart = Math.floor(Date.now() / 1000);
+			const message = `CKB-PoP-QR|${ev.id}|${sessionStart}`;
+			this.sessionSignature = await this.walletService.signMessage(message);
 			this.startRotation();
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to sign attendance session.';
+			this.signingError.set(message);
 		}
 	}
 
@@ -170,20 +198,25 @@ export class LiveQrComponent implements OnInit, OnDestroy {
 
 	private async generateQr() {
 		const ev = this.event();
-		if (!ev || !this.walletService.isConnected()) return;
+		if (!ev || !this.sessionSignature) return;
 
 		const timestamp = Math.floor(Date.now() / 1000);
-		const message = `CKB-PoP-QR|${ev.id}|${timestamp}`;
-		const signature = await this.walletService.signMessage(message);
-		const qrData = `${ev.id}|${timestamp}|${signature}`;
+		const qrData = `${ev.id}|${timestamp}|${this.sessionSignature}`;
 
-		const dataUrl = await QRCode.toDataURL(qrData, {
-			width: 300,
-			margin: 1,
-			color: { dark: '#0f172a', light: '#ffffff' },
-			errorCorrectionLevel: 'M',
-		});
-		this.qrUrl.set(dataUrl);
+		try {
+			const dataUrl = await QRCode.toDataURL(qrData, {
+				width: 300,
+				margin: 1,
+				color: { dark: '#0f172a', light: '#ffffff' },
+				errorCorrectionLevel: 'L',
+			});
+			this.qrUrl.set(dataUrl);
+		} catch {
+			this.signingError.set('Failed to generate QR code.');
+			if (this.intervalId) clearInterval(this.intervalId);
+			this.intervalId = null;
+			return;
+		}
 
 		this.secondsLeft.set(this.refreshRate);
 		this.progress.set(100);
