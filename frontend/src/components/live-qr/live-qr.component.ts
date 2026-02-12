@@ -40,20 +40,20 @@ import QRCode from 'qrcode';
           </div>
 
           @if (needsWallet()) {
-            <!-- Creator must connect wallet to sign attendance window -->
+            <!-- Creator must connect wallet to sign QR codes -->
             <div class="p-6 text-center">
               <div class="font-mono text-[10px] text-zinc-500 uppercase tracking-wider mb-3">
-                Connect wallet to start attendance window
+                Connect wallet to generate attendance codes
               </div>
               <button (click)="showModal.set(true)" class="inline-flex items-center gap-2 px-4 py-2 bg-lime-400 text-black font-mono text-[10px] font-semibold uppercase tracking-wider">
                 <span>Connect Wallet</span>
               </button>
             </div>
-          } @else if (windowError()) {
+          } @else if (signingError()) {
             <div class="p-6 text-center">
-              <div class="font-mono text-[10px] text-red-400 uppercase tracking-wider mb-1">Window Error</div>
-              <div class="font-mono text-[9px] text-zinc-500">{{ windowError() }}</div>
-              <button (click)="openWindow()" class="mt-3 font-mono text-[9px] text-lime-400 uppercase tracking-wider hover:underline">
+              <div class="font-mono text-[10px] text-red-400 uppercase tracking-wider mb-1">Signing Error</div>
+              <div class="font-mono text-[9px] text-zinc-500">{{ signingError() }}</div>
+              <button (click)="startKiosk()" class="mt-3 font-mono text-[9px] text-lime-400 uppercase tracking-wider hover:underline">
                 Retry
               </button>
             </div>
@@ -121,13 +121,13 @@ export class LiveQrComponent implements OnInit, OnDestroy {
   progress = signal(100);
   secondsLeft = signal(30);
   needsWallet = signal(false);
-  windowError = signal<string | null>(null);
+  signingError = signal<string | null>(null);
   showModal = signal(false);
 
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private refreshRate = 30;
-
-  private readonly backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+  // Signed once per kiosk session to avoid repeated wallet popups.
+  private sessionSignature: string | null = null;
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
@@ -142,7 +142,7 @@ export class LiveQrComponent implements OnInit, OnDestroy {
       return;
     }
     this.event.set(ev);
-    await this.openWindow();
+    await this.startKiosk();
   }
 
   ngOnDestroy() {
@@ -151,14 +151,13 @@ export class LiveQrComponent implements OnInit, OnDestroy {
 
   onWalletModalClose() {
     this.showModal.set(false);
-    // Retry after wallet connection
     if (this.walletService.isConnected()) {
-      this.openWindow();
+      this.startKiosk();
     }
   }
 
-  async openWindow() {
-    this.windowError.set(null);
+  async startKiosk() {
+    this.signingError.set(null);
     this.needsWallet.set(false);
 
     if (!this.walletService.isConnected()) {
@@ -170,35 +169,19 @@ export class LiveQrComponent implements OnInit, OnDestroy {
     if (!ev) return;
 
     try {
-      const windowStart = Math.floor(Date.now() / 1000);
-      const message = `CKB-PoP-Window|${ev.id}|${windowStart}|open`;
-      const signature = await this.walletService.signMessage(message);
-
-      const res = await fetch(`${this.backendUrl}/events/${ev.id}/window`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          window_start: windowStart,
-          window_end: null,
-          creator_signature: signature,
-        })
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to open window' }));
-        this.windowError.set(err.error || 'Failed to open attendance window.');
-        return;
-      }
-
+      // Sign once to prove creator identity for this kiosk session.
+      const sessionStart = Math.floor(Date.now() / 1000);
+      const message = `CKB-PoP-QR|${ev.id}|${sessionStart}`;
+      this.sessionSignature = await this.walletService.signMessage(message);
       this.startRotation();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to open attendance window.';
-      this.windowError.set(message);
+      const message = err instanceof Error ? err.message : 'Failed to sign attendance session.';
+      this.signingError.set(message);
     }
   }
 
   private startRotation() {
-    this.fetchQr();
+    this.generateQr();
     let tick = 0;
     this.intervalId = setInterval(() => {
       tick++;
@@ -207,38 +190,29 @@ export class LiveQrComponent implements OnInit, OnDestroy {
       this.progress.set((remaining / this.refreshRate) * 100);
 
       if (tick >= this.refreshRate) {
-        this.fetchQr();
+        this.generateQr();
         tick = 0;
       }
     }, 1000);
   }
 
-  private async fetchQr() {
+  private async generateQr() {
     const ev = this.event();
-    if (!ev) return;
+    if (!ev || !this.sessionSignature) return;
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const qrData = `${ev.id}|${timestamp}|${this.sessionSignature}`;
 
     try {
-      const res = await fetch(`${this.backendUrl}/events/${ev.id}/qr`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Backend unreachable' }));
-        this.windowError.set(err.error || 'Failed to fetch QR code.');
-        if (this.intervalId) clearInterval(this.intervalId);
-        this.intervalId = null;
-        return;
-      }
-
-      const data = await res.json();
-      this.refreshRate = data.ttl_seconds || 30;
-
-      const dataUrl = await QRCode.toDataURL(data.qr_data, {
+      const dataUrl = await QRCode.toDataURL(qrData, {
         width: 300,
         margin: 1,
         color: { dark: '#0f172a', light: '#ffffff' },
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'L',
       });
       this.qrUrl.set(dataUrl);
     } catch {
-      this.windowError.set('Backend unreachable. Cannot generate signed QR codes.');
+      this.signingError.set('Failed to generate QR code.');
       if (this.intervalId) clearInterval(this.intervalId);
       this.intervalId = null;
       return;
