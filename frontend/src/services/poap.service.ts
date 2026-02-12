@@ -1,394 +1,500 @@
 import { Injectable, signal, inject, computed } from '@angular/core';
-import { ccc } from '@ckb-ccc/ccc';
 import { WalletService } from './wallet.service';
 import { ToastService } from './toast.service';
-import { ContractService, ChainRejectionError, EventMetadata } from './contract.service';
+import { ContractService, ChainRejectionError } from './contract.service';
 
 export interface PoPEvent {
-	id: string;
-	name: string;
-	date: string;
-	issuer: string;
-	location: string;
-	description?: string;
-	imageUrl?: string;
-	anchorTxHash?: string; // On-chain event anchor transaction
+  id: string;
+  name: string;
+  date: string;
+  issuer: string;
+  location: string;
+  description?: string;
+  imageUrl?: string;
+  anchorTxHash?: string; // On-chain event anchor transaction
 }
 
 export interface Badge {
-	id: string;
-	eventId: string;
-	eventName: string;
-	mintDate: string;
-	txHash: string;
-	imageUrl: string;
-	role: 'Attendee' | 'Organizer' | 'Certificate';
-	blockNumber?: number;
+  id: string;
+  eventId: string;
+  eventName: string;
+  mintDate: string;
+  txHash: string;
+  imageUrl: string;
+  role: 'Attendee' | 'Organizer' | 'Certificate';
+  blockNumber?: number;
 }
 
 export interface Attendee {
-	address: string;
-	mintDate: string;
-	txHash: string;
+  address: string;
+  mintDate: string;
+  txHash: string;
 }
 
 @Injectable({
-	providedIn: 'root'
+  providedIn: 'root'
 })
 export class PoapService {
-	private walletService = inject(WalletService);
-	private toast = inject(ToastService);
-	private contractService = inject(ContractService);
+  private walletService = inject(WalletService);
+  private toast = inject(ToastService);
+  private contractService = inject(ContractService);
 
-	private readonly badgesSignal = signal<Badge[]>([]);
+  private readonly badgesSignal = signal<Badge[]>([]);
 
-	// Store created events in memory
-	private readonly eventsSignal = signal<PoPEvent[]>([]);
+  // Store created events in memory
+  private readonly eventsSignal = signal<PoPEvent[]>([]);
 
-	readonly myBadges = this.badgesSignal.asReadonly();
+  readonly myBadges = this.badgesSignal.asReadonly();
+  
+  // Computed signal to get events created by the current user
+  readonly myCreatedEvents = computed(() => {
+    const address = this.walletService.address();
+    if (!address) return [];
+    return this.eventsSignal().filter(e => e.issuer === address);
+  });
 
-	readonly explorerUrl = import.meta.env.VITE_EXPLORER_URL || 'https://pudge.explorer.nervos.org';
+  async getEventByCode(code: string): Promise<PoPEvent> {
+    // Handle QR formats:
+    //   Simple ID:    "eventId"
+    //   Unsigned QR:  "eventId|timestamp"        (fallback, no HMAC)
+    //   Signed QR:    "eventId|timestamp|hmac"   (backend-signed)
+    let targetId = code;
+    let isDynamic = false;
+    let timestampMs = 0;
 
-	// Computed signal to get events created by the current user
-	readonly myCreatedEvents = computed(() => {
-		const address = this.walletService.address();
-		if (!address) return [];
-		return this.eventsSignal().filter(e => e.issuer === address);
-	});
+    if (code.includes('|')) {
+      const parts = code.split('|');
+      targetId = parts[0];
+      const rawTs = parseInt(parts[1], 10);
+      isDynamic = true;
 
-	async getEventByCode(code: string): Promise<PoPEvent> {
-		// Handle QR formats:
-		//   Simple ID:    "eventId"
-		//   Unsigned QR:  "eventId|timestamp"        (fallback, no signature)
-		//   Signed QR:    "eventId|timestamp|signature" (creator-signed)
-		let targetId = code;
-		let isDynamic = false;
-		let timestampMs = 0;
-		let signature: string | undefined;
+      // Normalize timestamp: backend sends seconds, fallback sends seconds too.
+      // Detect by digit count: <1e12 = seconds, >=1e12 = milliseconds.
+      timestampMs = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+    }
 
-		if (code.includes('|')) {
-			const parts = code.split('|');
-			targetId = parts[0];
-			const rawTs = parseInt(parts[1], 10);
-			isDynamic = true;
+    // Dynamic QR expiry check (60 second validity window)
+    if (isDynamic) {
+      const now = Date.now();
+      if (now - timestampMs > 60000) {
+        throw new Error('QR Code Expired. Please scan the live screen again.');
+      }
+      if (timestampMs > now + 10000) {
+        throw new Error('Invalid Time Check.');
+      }
+    }
 
-			// Normalize timestamp: <1e12 = seconds, >=1e12 = milliseconds.
-			timestampMs = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+    // Query backend (source of truth) for the event
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${targetId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const evt = data.event;
+        return {
+          id: evt.event_id,
+          name: evt.metadata.name,
+          date: evt.metadata.start_time || evt.activated_at,
+          issuer: evt.creator_address,
+          location: evt.metadata.location || '',
+          description: evt.metadata.description,
+          imageUrl: evt.metadata.image_url,
+          anchorTxHash: evt.payment_tx_hash,
+        };
+      }
+    } catch {
+      // Backend unreachable — fall back to local cache
+      const localEvent = this.eventsSignal().find(e => e.id.toLowerCase() === targetId.toLowerCase());
+      if (localEvent) return localEvent;
+    }
 
-			if (parts.length >= 3) {
-				signature = parts[2];
-			}
-		}
+    throw new Error('Event not found');
+  }
 
-		// Dynamic QR expiry check (60 second validity window)
-		if (isDynamic) {
-			const now = Date.now();
-			if (now - timestampMs > 60000) {
-				throw new Error('QR Code Expired. Please scan the live screen again.');
-			}
-			if (timestampMs > now + 10000) {
-				throw new Error('Invalid Time Check.');
-			}
-		}
+  async getEventById(id: string): Promise<PoPEvent | undefined> {
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        const evt = data.event;
+        return {
+          id: evt.event_id,
+          name: evt.metadata.name,
+          date: evt.metadata.start_time || evt.activated_at,
+          issuer: evt.creator_address,
+          location: evt.metadata.location || '',
+          description: evt.metadata.description,
+          imageUrl: evt.metadata.image_url,
+          anchorTxHash: evt.payment_tx_hash,
+        };
+      }
+    } catch {
+      // Backend unreachable — fall back to local cache
+      return this.eventsSignal().find(e => e.id === id);
+    }
+    return undefined;
+  }
 
-		// Look up event on chain
-		const chainEvent = await this.contractService.findEventById(targetId);
-		if (chainEvent) {
-			const evt = this.chainEventToPoPEvent(chainEvent);
+  async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
+    const nonce = crypto.randomUUID();
 
-			// Verify creator signature if present
-			if (signature && isDynamic) {
-				const timestampSec = Math.floor(timestampMs / 1000);
-				const message = `CKB-PoP-QR|${targetId}|${timestampSec}`;
-				const isValid = await this.verifyCreatorSignature(message, signature, evt.issuer);
-				if (!isValid) {
-					throw new Error('Invalid QR signature. This QR was not signed by the event creator.');
-				}
-			}
+    // Sign creation intent with wallet
+    const message = `CKB-PoP-CreateEvent|${nonce}`;
+    const signature = await this.walletService.signMessage(message);
 
-			return evt;
-		}
+    // Submit to backend — gets cryptographic event ID
+    // Backend expects Option<DateTime<Utc>> — convert date string to ISO 8601
+    const startTime = eventData.date ? new Date(eventData.date).toISOString() : null;
 
-		// Fall back to local cache
-		const localEvent = this.eventsSignal().find(e => e.id.toLowerCase() === targetId.toLowerCase());
-		if (localEvent) return localEvent;
+    const res = await fetch(`${this.backendUrl}/events/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creator_address: issuerAddress,
+        creator_signature: signature,
+        nonce,
+        metadata: {
+          name: eventData.name,
+          description: eventData.description || '',
+          image_url: eventData.imageUrl || null,
+          location: eventData.location || null,
+          start_time: startTime,
+          end_time: null,
+        }
+      })
+    });
 
-		throw new Error('Event not found');
-	}
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to create event' }));
+      throw new Error(err.error || 'Failed to create event');
+    }
 
-	async getEventById(id: string): Promise<PoPEvent | undefined> {
-		// Try chain first
-		const chainEvent = await this.contractService.findEventById(id);
-		if (chainEvent) {
-			return this.chainEventToPoPEvent(chainEvent);
-		}
-		// Fall back to local cache
-		return this.eventsSignal().find(e => e.id === id);
-	}
+    const activeEvent = await res.json();
+    const eventId = activeEvent.event_id;
 
-	async createEvent(eventData: Pick<PoPEvent, 'name' | 'date' | 'location' | 'description' | 'imageUrl'>, issuerAddress: string): Promise<PoPEvent> {
-		// Generate event ID locally
-		const { eventId } = await this.contractService.generateEventId(issuerAddress);
+    // Optional: create on-chain anchor using the backend-derived ID
+    let anchorTxHash: string | undefined;
+    try {
+      const metadataJson = JSON.stringify({
+        name: eventData.name,
+        date: eventData.date,
+        location: eventData.location,
+        description: eventData.description,
+      });
+      const encoder = new TextEncoder();
+      const metadataBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(metadataJson));
+      const metadataHash = '0x' + Array.from(new Uint8Array(metadataBuffer))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
 
-		const startTime = eventData.date ? new Date(eventData.date).toISOString() : undefined;
-		const metadata: EventMetadata = {
-			name: eventData.name,
-			description: eventData.description || '',
-			location: eventData.location || undefined,
-			start_time: startTime,
-			image_url: eventData.imageUrl || undefined,
-		};
+      anchorTxHash = await this.contractService.createEventAnchor(
+        eventId,
+        issuerAddress,
+        metadataHash
+      );
+    } catch (e) {
+      console.warn("Event anchor creation failed (non-critical):", e);
+    }
 
-		// Create on-chain event anchor with full JSON cell data
-		const anchorTxHash = await this.contractService.createEventAnchor(
-			eventId,
-			issuerAddress,
-			metadata,
-		);
+    const newEvent: PoPEvent = {
+      id: eventId,
+      name: eventData.name,
+      date: eventData.date,
+      location: eventData.location,
+      issuer: issuerAddress,
+      description: eventData.description,
+      imageUrl: eventData.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
+      anchorTxHash
+    };
 
-		const newEvent: PoPEvent = {
-			id: eventId,
-			name: eventData.name,
-			date: eventData.date,
-			location: eventData.location,
-			issuer: issuerAddress,
-			description: eventData.description,
-			imageUrl: eventData.imageUrl || `https://picsum.photos/seed/${Date.now()}/600/400`,
-			anchorTxHash,
-		};
+    this.eventsSignal.update(evts => [newEvent, ...evts]);
+    this.toast.success(`Event created: ${newEvent.name}`);
 
-		this.eventsSignal.update(evts => [newEvent, ...evts]);
-		this.toast.success(`Event created: ${newEvent.name}`);
+    return newEvent;
+  }
 
-		return newEvent;
-	}
+  private readonly backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001/api';
+  readonly explorerUrl = import.meta.env.VITE_EXPLORER_URL || 'https://pudge.explorer.nervos.org';
 
-	async getAttendees(eventId: string): Promise<Attendee[]> {
-		try {
-			const badges = await this.contractService.findBadgesByEvent(eventId);
-			return badges.map(b => ({
-				address: b.holderAddress,
-				mintDate: '',
-				txHash: b.txHash,
-			}));
-		} catch {
-			return [];
-		}
-	}
+  async getAttendees(eventId: string): Promise<Attendee[]> {
+    try {
+      const res = await fetch(`${this.backendUrl}/events/${eventId}/badge-holders`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.badges || []).map((b: { holder_address: string; observed_at: string; mint_tx_hash: string }) => ({
+        address: b.holder_address,
+        mintDate: b.observed_at,
+        txHash: b.mint_tx_hash,
+      }));
+    } catch {
+      return [];
+    }
+  }
 
-	async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
-		// Mint badge on-chain via ContractService
-		// The TYPE SCRIPT enforces uniqueness - if badge exists, chain rejects
-		let txHash: string;
-		try {
-			txHash = await this.contractService.mintBadge(
-				event.id,
-				event.issuer,
-				address
-			);
-		} catch (err) {
-			// Surface chain rejection to user
-			if (err instanceof ChainRejectionError) {
-				this.toast.error(err.message);
-				throw err;
-			}
-			throw err;
-		}
+  async mintBadge(event: PoPEvent, address: string): Promise<Badge> {
+    // Mint badge on-chain via ContractService
+    // The TYPE SCRIPT enforces uniqueness - if badge exists, chain rejects
+    let txHash: string;
+    try {
+      txHash = await this.contractService.mintBadge(
+        event.id,
+        event.issuer,
+        address
+      );
+    } catch (err) {
+      // Surface chain rejection to user
+      if (err instanceof ChainRejectionError) {
+        this.toast.error(err.message);
+        throw err;
+      }
+      throw err;
+    }
 
-		const newBadge: Badge = {
-			id: crypto.randomUUID(),
-			eventId: event.id,
-			eventName: event.name,
-			mintDate: new Date().toISOString(),
-			txHash,
-			imageUrl: event.imageUrl || `https://picsum.photos/seed/${event.id}/400/400`,
-			role: 'Attendee'
-		};
+    // Record the mint in the backend with retry; stash in localStorage on failure.
+    this.recordBadgeWithRetry(event.id, address, txHash);
 
-		this.badgesSignal.update(badges => [newBadge, ...badges]);
-		this.toast.success(`Badge minted for ${event.name}`);
+    const newBadge: Badge = {
+      id: crypto.randomUUID(),
+      eventId: event.id,
+      eventName: event.name,
+      mintDate: new Date().toISOString(),
+      txHash,
+      imageUrl: event.imageUrl || `https://picsum.photos/seed/${event.id}/400/400`,
+      role: 'Attendee'
+    };
 
-		// Wait for confirmation via CCC client in the background.
-		this.waitForConfirmation(txHash);
+    this.badgesSignal.update(badges => [newBadge, ...badges]);
+    this.toast.success(`Badge minted for ${event.name}`);
 
-		return newBadge;
-	}
+    // Start polling for block confirmation in the background.
+    this.pollForConfirmation(txHash);
 
-	/**
-	 * Poll for transaction confirmation using CCC client.
-	 * Updates the badge's blockNumber once the tx is committed on-chain.
-	 */
-	private async waitForConfirmation(txHash: string): Promise<void> {
-		const client = this.walletService.ckbClient;
-		const maxAttempts = 24; // ~2 minutes at 5s intervals
+    return newBadge;
+  }
 
-		for (let attempt = 0; attempt < maxAttempts; attempt++) {
-			await new Promise(r => setTimeout(r, 5_000));
-			try {
-				// CCC client.getTransaction returns TransactionWithStatus
-				const result = await client.getTransaction(txHash);
-				if (!result) continue;
+  /**
+   * Poll the backend for transaction confirmation.
+   * Updates the badge's blockNumber once the tx is committed on-chain.
+   */
+  private async pollForConfirmation(txHash: string): Promise<void> {
+    const poll = async () => {
+      try {
+        const res = await fetch(`${this.backendUrl}/tx/${txHash}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.confirmed && data.block_number) {
+          this.badgesSignal.update(badges =>
+            badges.map(b => b.txHash === txHash ? { ...b, blockNumber: data.block_number } : b)
+          );
+          return; // Confirmed — stop polling.
+        }
+      } catch {
+        // Backend unreachable — will retry.
+      }
+      setTimeout(poll, 10_000);
+    };
+    setTimeout(poll, 5_000); // First check after 5 seconds.
+  }
 
-				// Check if committed — handle both CCC response shapes
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const r = result as any;
-				const status = r.txStatus?.status ?? r.status;
-				if (status === 'committed') {
-					const blockHash = r.txStatus?.blockHash ?? r.blockHash;
-					if (blockHash) {
-						try {
-							const header = await client.getHeaderByHash(blockHash);
-							if (header) {
-								const blockNum = Number(header.number);
-								this.badgesSignal.update(badges =>
-									badges.map(b => b.txHash === txHash ? { ...b, blockNumber: blockNum } : b)
-								);
-							}
-						} catch {
-							// Block number unavailable — badge stays without it
-						}
-					}
-					return;
-				}
-			} catch {
-				// RPC error — will retry
-			}
-		}
-	}
+  /**
+   * UX hint: Check if badge might already exist.
+   * For display purposes only - not enforcement.
+   */
+  async checkBadgeExistsHint(eventId: string, address: string): Promise<boolean> {
+    return this.contractService.badgeExistsHint(eventId, address);
+  }
 
-	/**
-	 * UX hint: Check if badge might already exist.
-	 * For display purposes only - not enforcement.
-	 */
-	async checkBadgeExistsHint(eventId: string, address: string): Promise<boolean> {
-		return this.contractService.badgeExistsHint(eventId, address);
-	}
+  /**
+   * Load badges from the backend for the given address.
+   * Merges backend observations with locally-minted badges.
+   * Eagerly resolves block numbers for any pending badges via /api/tx/:hash.
+   */
+  async loadBadgesFromBackend(address: string): Promise<void> {
+    // Flush any badge records that failed to POST in a previous session.
+    await this.flushPendingRecords();
 
-	/**
-	 * Load badges from chain for the given address.
-	 * Resolves event names by querying the chain for each unique event.
-	 */
-	async loadBadgesFromChain(address: string): Promise<void> {
-		try {
-			const badgeCells = await this.contractService.findBadgesByAddress(address);
+    try {
+      const res = await fetch(`${this.backendUrl}/badges/observe?address=${encodeURIComponent(address)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const observations: Array<{
+        event_id: string;
+        holder_address: string;
+        mint_tx_hash: string;
+        mint_block_number: number;
+        verified_at_block: number;
+        observed_at: string;
+      }> = data.badges || [];
 
-			// Build event hash → PoPEvent map for correlation.
-			// First check local cache, then query chain for unknowns.
-			const eventMap = new Map<string, PoPEvent>();
+      // Fetch event details for names and images
+      const backendBadges: Badge[] = [];
+      for (const obs of observations) {
+        const event = await this.getEventById(obs.event_id);
 
-			// Populate from local events cache
-			for (const evt of this.eventsSignal()) {
-				const hashBytes = new Uint8Array(
-					await crypto.subtle.digest('SHA-256', new TextEncoder().encode(evt.id))
-				);
-				const hashHex = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-				eventMap.set(hashHex, evt);
-			}
+        // If block number is 0 (pending), try resolving it now.
+        let blockNumber = obs.mint_block_number > 0 ? obs.mint_block_number : undefined;
+        if (!blockNumber) {
+          blockNumber = await this.resolveBlockNumber(obs.mint_tx_hash);
+        }
 
-			// Collect unique hashes not in cache, query chain
-			const unknownHashes = new Set<string>();
-			for (const cell of badgeCells) {
-				if (!eventMap.has(cell.eventIdHash)) {
-					unknownHashes.add(cell.eventIdHash);
-				}
-			}
-			for (const hash of unknownHashes) {
-				try {
-					const chainEvent = await this.contractService.findEventByIdHash(hash);
-					if (chainEvent) {
-						eventMap.set(hash, this.chainEventToPoPEvent(chainEvent));
-					}
-				} catch {
-					// Skip unresolvable events
-				}
-			}
+        backendBadges.push({
+          id: `${obs.event_id}-${obs.holder_address}`,
+          eventId: obs.event_id,
+          eventName: event?.name || obs.event_id,
+          mintDate: obs.observed_at,
+          txHash: obs.mint_tx_hash,
+          imageUrl: event?.imageUrl || `https://picsum.photos/seed/${obs.event_id}/400/400`,
+          role: 'Attendee',
+          blockNumber,
+        });
+      }
 
-			const chainBadges: Badge[] = badgeCells.map(cell => {
-				const event = eventMap.get(cell.eventIdHash);
-				return {
-					id: `${cell.eventIdHash}-${address}`,
-					eventId: event?.id || cell.eventIdHash,
-					eventName: event?.name || `Event ${cell.eventIdHash.slice(0, 8)}...`,
-					mintDate: '',
-					txHash: cell.txHash,
-					imageUrl: event?.imageUrl || `https://picsum.photos/seed/${cell.eventIdHash}/400/400`,
-					role: 'Attendee' as const,
-				};
-			});
+      // Merge: keep local badges that aren't in backend, add all backend badges
+      const localOnly = this.badgesSignal().filter(
+        b => !backendBadges.some(bb => bb.txHash === b.txHash)
+      );
+      this.badgesSignal.set([...backendBadges, ...localOnly]);
 
-			// Merge: keep local badges not in chain results, add all chain badges
-			const localOnly = this.badgesSignal().filter(
-				b => !chainBadges.some(cb => cb.txHash === b.txHash)
-			);
-			this.badgesSignal.set([...chainBadges, ...localOnly]);
-		} catch {
-			// Chain query failed — keep local badges
-		}
-	}
+      // Start polling for any still-unconfirmed badges.
+      for (const badge of backendBadges) {
+        if (!badge.blockNumber) {
+          this.pollForConfirmation(badge.txHash);
+        }
+      }
+    } catch {
+      // Backend unreachable — keep local badges only
+    }
+  }
 
-	/**
-	 * Load events from chain for the given creator address.
-	 * Populates the eventsSignal so myCreatedEvents works across sessions.
-	 */
-	async loadMyEventsFromChain(address: string): Promise<void> {
-		try {
-			const events: PoPEvent[] = [];
-			for await (const cell of this.contractService.findAllEventCells()) {
-				if (cell.creator === address) {
-					events.push(this.chainEventToPoPEvent(cell));
-				}
-			}
+  /**
+   * Try to resolve a block number for a tx hash via the backend tx status endpoint.
+   * Returns undefined if the tx is not yet confirmed or unreachable.
+   */
+  private async resolveBlockNumber(txHash: string): Promise<number | undefined> {
+    try {
+      const res = await fetch(`${this.backendUrl}/tx/${txHash}`);
+      if (!res.ok) return undefined;
+      const data = await res.json();
+      if (data.confirmed && data.block_number) {
+        return data.block_number;
+      }
+    } catch {
+      // Unreachable — leave as pending.
+    }
+    return undefined;
+  }
 
-			// Merge with locally-created events to avoid duplicates.
-			const existingIds = new Set(this.eventsSignal().map(e => e.id));
-			const newFromChain = events.filter(e => !existingIds.has(e.id));
-			if (newFromChain.length > 0) {
-				this.eventsSignal.update(existing => [...existing, ...newFromChain]);
-			}
-		} catch {
-			// Chain query failed — keep local events only.
-		}
-	}
+  private static readonly PENDING_RECORDS_KEY = 'ckb-pop-pending-badge-records';
 
-	/**
-	 * Convert a chain event cell result to a PoPEvent.
-	 */
-	private chainEventToPoPEvent(cell: { eventId: string; creator: string; metadata: Record<string, unknown>; txHash: string }): PoPEvent {
-		return {
-			id: cell.eventId,
-			name: (cell.metadata['name'] as string) || '',
-			date: (cell.metadata['start_time'] as string) || '',
-			issuer: cell.creator,
-			location: (cell.metadata['location'] as string) || '',
-			description: cell.metadata['description'] as string | undefined,
-			imageUrl: cell.metadata['image_url'] as string | undefined,
-			anchorTxHash: cell.txHash,
-		};
-	}
+  /**
+   * POST to /badges/record with retry. On total failure, stash in localStorage
+   * so the next login can flush it.
+   */
+  private async recordBadgeWithRetry(eventId: string, address: string, txHash: string): Promise<void> {
+    const payload = { event_id: eventId, holder_address: address, tx_hash: txHash };
+    const maxRetries = 3;
 
-	/**
-	 * Verify that a message was signed by the event creator.
-	 * Attempts CCC signature verification; skips gracefully if unavailable.
-	 */
-	private async verifyCreatorSignature(message: string, signature: string, creatorAddress: string): Promise<boolean> {
-		try {
-			const client = this.walletService.ckbClient;
-			const creatorAddr = await ccc.Address.fromString(creatorAddress, client);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const res = await fetch(`${this.backendUrl}/badges/record`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) return;
+      } catch {
+        // Network error — will retry.
+      }
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+    }
 
-			// CCC may provide verifyMessageByCkb for secp256k1-blake160 signatures.
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const cccAny = ccc as any;
-			if (typeof cccAny.verifyMessageByCkb === 'function') {
-				return cccAny.verifyMessageByCkb(message, signature, creatorAddr);
-			}
+    // All retries exhausted — stash for next login.
+    this.stashPendingRecord(payload);
+  }
 
-			// Fallback: if no verification utility is available, skip check.
-			// Unsigned QR fallback (Phase 3.4) provides the baseline security model.
-			console.warn('CCC verifyMessageByCkb not available; skipping QR signature verification.');
-			return true;
-		} catch (err) {
-			console.warn('QR signature verification failed:', err);
-			return false;
-		}
-	}
+  private stashPendingRecord(record: { event_id: string; holder_address: string; tx_hash: string }): void {
+    try {
+      const raw = localStorage.getItem(PoapService.PENDING_RECORDS_KEY);
+      const pending: Array<typeof record> = raw ? JSON.parse(raw) : [];
+      if (!pending.some(r => r.tx_hash === record.tx_hash)) {
+        pending.push(record);
+        localStorage.setItem(PoapService.PENDING_RECORDS_KEY, JSON.stringify(pending));
+      }
+    } catch {
+      // localStorage unavailable — best-effort.
+    }
+  }
+
+  /**
+   * Flush any stashed badge records to the backend.
+   * Called on login before loading badges.
+   */
+  private async flushPendingRecords(): Promise<void> {
+    let pending: Array<{ event_id: string; holder_address: string; tx_hash: string }>;
+    try {
+      const raw = localStorage.getItem(PoapService.PENDING_RECORDS_KEY);
+      if (!raw) return;
+      pending = JSON.parse(raw);
+      if (!pending.length) return;
+    } catch {
+      return;
+    }
+
+    const remaining: typeof pending = [];
+    for (const record of pending) {
+      try {
+        const res = await fetch(`${this.backendUrl}/badges/record`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(record),
+        });
+        if (!res.ok) remaining.push(record);
+      } catch {
+        remaining.push(record);
+      }
+    }
+
+    if (remaining.length) {
+      localStorage.setItem(PoapService.PENDING_RECORDS_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(PoapService.PENDING_RECORDS_KEY);
+    }
+  }
+
+  /**
+   * Load events created by the given address from the backend.
+   * Populates the eventsSignal so myCreatedEvents works across sessions.
+   */
+  async loadMyEventsFromBackend(address: string): Promise<void> {
+    try {
+      const res = await fetch(`${this.backendUrl}/events`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const events: PoPEvent[] = (data.events || [])
+        .filter((e: { creator_address: string }) => e.creator_address === address)
+        .map((e: {
+          event_id: string;
+          metadata: { name: string; start_time?: string; description?: string; image_url?: string; location?: string };
+          activated_at: string;
+          creator_address: string;
+          payment_tx_hash?: string;
+        }) => ({
+          id: e.event_id,
+          name: e.metadata.name,
+          date: e.metadata.start_time || e.activated_at,
+          issuer: e.creator_address,
+          location: e.metadata.location || '',
+          description: e.metadata.description,
+          imageUrl: e.metadata.image_url,
+          anchorTxHash: e.payment_tx_hash,
+        }));
+
+      // Merge with locally-created events to avoid duplicates.
+      const existingIds = new Set(this.eventsSignal().map(e => e.id));
+      const newFromBackend = events.filter(e => !existingIds.has(e.id));
+      if (newFromBackend.length > 0) {
+        this.eventsSignal.update(existing => [...existing, ...newFromBackend]);
+      }
+    } catch {
+      // Backend unreachable — keep local events only.
+    }
+  }
 }
