@@ -131,7 +131,7 @@ function notInPast(control: AbstractControl) {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <div class="font-mono text-[9px] text-zinc-400 uppercase tracking-wider leading-relaxed">
-                        Storage deposit: <span class="text-white">~340 CKB</span>. Reclaimable on destruction.
+                        Storage deposit: <span class="text-white">~500-600 CKB</span>. Permanent storage deposit.
                       </div>
                     </div>
                   </div>
